@@ -1,0 +1,117 @@
+/* Cupón-ticket. Los troqueles son agujeros reales (mask), no círculos pintados: así funcionan
+   sobre cualquier fondo. La sombra va con filter en el contenedor porque box-shadow se recorta con mask.
+   Las máscaras van en variables: -v = troquel horizontal (ticket vertical), -h = troquel vertical. */
+.ticket {
+  --corte: 13px;
+  --radio: 22px;
+  --mascara-foto-v:
+    radial-gradient(circle var(--corte) at 0 100%, #0000 98%, #000) left / 51% 100% no-repeat,
+    radial-gradient(circle var(--corte) at 100% 100%, #0000 98%, #000) right / 51% 100% no-repeat;
+  --mascara-cuerpo-v:
+    radial-gradient(circle var(--corte) at 0 0, #0000 98%, #000) left / 51% 100% no-repeat,
+    radial-gradient(circle var(--corte) at 100% 0, #0000 98%, #000) right / 51% 100% no-repeat;
+  --mascara-foto-h:
+    radial-gradient(circle var(--corte) at 100% 0, #0000 98%, #000) top / 100% 51% no-repeat,
+    radial-gradient(circle var(--corte) at 100% 100%, #0000 98%, #000) bottom / 100% 51% no-repeat;
+  --mascara-cuerpo-h:
+    radial-gradient(circle var(--corte) at 0 0, #0000 98%, #000) top / 100% 51% no-repeat,
+    radial-gradient(circle var(--corte) at 0 100%, #0000 98%, #000) bottom / 100% 51% no-repeat;
+
+  position: relative;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  filter: drop-shadow(0 14px 22px rgba(13, 50, 54, 0.16));
+  color: var(--ink);
+}
+
+.foto {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: var(--green-dark);
+  border-radius: var(--radio) var(--radio) 0 0;
+  overflow: hidden;
+  -webkit-mask: var(--mascara-foto-v);
+  mask: var(--mascara-foto-v);
+}
+.foto img { width: 100%; height: 100%; object-fit: cover; }
+
+.categoria, .pocos {
+  position: absolute;
+  padding: 6px 11px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+.categoria { top: 12px; left: 12px; background: var(--white); color: var(--green); }
+.pocos { bottom: 22px; left: 12px; background: var(--orange); color: var(--ink); }
+
+.cuerpo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 20px 20px;
+  background: var(--ticket);
+  border-top: 2px dashed rgba(32, 108, 96, 0.35);
+  border-radius: 0 0 var(--radio) var(--radio);
+  -webkit-mask: var(--mascara-cuerpo-v);
+  mask: var(--mascara-cuerpo-v);
+}
+
+.beneficio { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; color: var(--orange-text); line-height: 1; }
+.beneficio :global(.display) { font-family: var(--font-display); font-size: 60px; line-height: 0.9; letter-spacing: 0.01em; }
+.beneficio small { font-size: 13px; font-weight: 800; color: var(--ink); white-space: nowrap; }
+
+.titulo { font-size: 19px; line-height: 1.25; letter-spacing: -0.02em; }
+.detalle { font-size: 14px; color: var(--muted); line-height: 1.45; }
+
+.datos { margin: 4px 0 6px; padding: 0; list-style: none; display: grid; gap: 6px; font-size: 13px; line-height: 1.4; }
+.datos li { display: flex; gap: 8px; align-items: flex-start; }
+.datos img { flex-shrink: 0; margin-top: 1px; }
+
+.cuerpo > :last-child { margin-top: auto; }
+
+/* ---------- Variante hero: más grande; horizontal en escritorio ---------- */
+.hero { --radio: 26px; --corte: 16px; filter: drop-shadow(0 26px 34px rgba(13, 50, 54, 0.22)); }
+.hero .foto { aspect-ratio: 2 / 1; }
+.hero .beneficio :global(.display) { font-size: clamp(68px, 17vw, 100px); }
+.hero .titulo { font-size: clamp(21px, 2.4vw, 26px); }
+.hero .cuerpo { padding: 18px 22px 22px; }
+
+/* ---------- Variante mio (Mis cupones): horizontal siempre, compacta ---------- */
+.mio { --corte: 11px; --radio: 18px; grid-template-rows: none; grid-template-columns: 96px 1fr; filter: drop-shadow(0 8px 16px rgba(13, 50, 54, 0.12)); }
+.mio .foto { aspect-ratio: auto; border-radius: var(--radio) 0 0 var(--radio); -webkit-mask: var(--mascara-foto-h); mask: var(--mascara-foto-h); }
+.mio .cuerpo { gap: 4px; padding: 14px 16px 16px; border-top: 0; border-left: 2px dashed rgba(32, 108, 96, 0.35); border-radius: 0 var(--radio) var(--radio) 0; -webkit-mask: var(--mascara-cuerpo-h); mask: var(--mascara-cuerpo-h); }
+.mio .beneficio :global(.display) { font-size: 38px; }
+.mio .titulo { font-size: 16px; }
+.mio .detalle { display: none; }
+.mio .datos { margin: 2px 0 4px; font-size: 12px; gap: 3px; }
+
+@media (min-width: 900px) {
+  .hero { grid-template-rows: none; grid-template-columns: 40% 1fr; }
+  .hero .foto { aspect-ratio: auto; border-radius: var(--radio) 0 0 var(--radio); -webkit-mask: var(--mascara-foto-h); mask: var(--mascara-foto-h); }
+  .hero .cuerpo { padding: 26px 28px 28px; border-top: 0; border-left: 2px dashed rgba(32, 108, 96, 0.35); border-radius: 0 var(--radio) var(--radio) 0; -webkit-mask: var(--mascara-cuerpo-h); mask: var(--mascara-cuerpo-h); }
+}
+
+/* ---------- Usado / vencido: apagado + sello (el estado se lee en el texto, no solo en el color) ---------- */
+.apagado { filter: none; }
+.apagado .foto img { filter: grayscale(1); opacity: 0.7; }
+.apagado .cuerpo { background: #eef1ec; color: var(--muted); }
+.apagado .beneficio { color: var(--muted); }
+.sello {
+  position: absolute;
+  top: 50%;
+  right: 16px;
+  padding: 2px 12px;
+  border: 3px solid currentColor;
+  border-radius: 8px;
+  font-family: var(--font-display);
+  font-size: 26px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transform: translateY(-50%) rotate(-12deg);
+  opacity: 0.85;
+  pointer-events: none;
+}
+.usado { color: var(--green-dark); }
+.vencido { color: var(--danger); }

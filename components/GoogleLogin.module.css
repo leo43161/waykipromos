@@ -1,0 +1,9 @@
+/* min-height evita el salto de diseño mientras carga el botón de Google (44px). */
+.button { width: 100%; max-width: 400px; min-height: 44px; display: flex; justify-content: center; }
+
+.error { margin-top: 12px; padding: 10px 14px; border-radius: 10px; background: var(--danger-soft); color: var(--danger); font-size: 13px; }
+
+.setup { padding: 16px; border-radius: 12px; border: 1px dashed var(--orange); background: #fff7ef; font-size: 13px; text-align: left; }
+.setup p { margin-top: 6px; }
+.setup code { font-size: 12px; background: var(--white); padding: 1px 5px; border-radius: 4px; }
+

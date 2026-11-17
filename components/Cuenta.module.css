@@ -1,0 +1,28 @@
+.main { display: grid; gap: 20px; max-width: 640px; min-height: 60dvh; padding-top: 24px; padding-bottom: 40px; }
+
+/* ---------- Sin sesión ---------- */
+.invitado { display: grid; gap: 12px; justify-items: start; padding: 28px 24px 24px; border-radius: 24px; background: var(--mint); }
+.invitado p { max-width: 40ch; }
+.wayki { width: 120px; margin-bottom: -4px; }
+.yaTengo { display: grid; gap: 10px; justify-items: start; padding: 4px 4px 0; }
+.yaTengo h2 { font-size: 18px; }
+
+/* ---------- Con sesión ---------- */
+.perfil { display: flex; align-items: center; gap: 16px; padding: 22px; border-radius: 24px; background: var(--ink); color: var(--white); }
+.perfil h1 { font-size: 22px; line-height: 1.2; }
+.perfil p { color: #b9cfc8; font-size: 14px; word-break: break-all; }
+.foto { width: 72px; height: 72px; flex-shrink: 0; border-radius: 50%; box-shadow: 0 0 0 3px var(--orange); }
+.inicial { display: grid; place-items: center; background: var(--orange); color: var(--ink); font-size: 30px; font-weight: 900; }
+
+.resumen { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; padding: 16px 20px; border: 2px dashed rgba(32, 108, 96, 0.35); border-radius: 18px; background: var(--ticket); font-size: 13px; font-weight: 700; }
+.resumen strong { display: block; font-size: 40px; line-height: 1; color: var(--orange-text); }
+.ver { grid-column: 1 / -1; margin-top: 6px; color: var(--green); font-weight: 800; text-decoration: underline; text-underline-offset: 3px; }
+
+.bloque { display: grid; gap: 12px; }
+.bloque h2 { font-size: 18px; }
+.respuestas { display: grid; margin: 0; border: 1px solid var(--line); border-radius: 16px; background: var(--white); }
+.respuestas div { display: grid; grid-template-columns: minmax(110px, 0.6fr) 1fr; gap: 12px; padding: 12px 16px; font-size: 14px; }
+.respuestas div + div { border-top: 1px solid var(--line); }
+.respuestas dt { color: var(--muted); font-weight: 600; }
+.respuestas dd { margin: 0; font-weight: 700; }
+.salir { justify-self: start; }

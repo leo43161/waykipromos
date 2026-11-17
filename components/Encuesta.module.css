@@ -1,0 +1,32 @@
+.form { display: grid; gap: 22px; }
+
+.grupo { margin: 0; padding: 0; border: 0; min-width: 0; }
+.grupo legend, .pregunta { display: block; font-size: 15px; font-weight: 800; letter-spacing: -0.01em; line-height: 1.35; }
+.grupo legend { margin-bottom: 10px; }
+
+/* Pastillas: radio/checkbox nativos (accesibles con teclado) con look de botón. */
+.pastillas { display: flex; flex-wrap: wrap; gap: 8px; }
+.pastilla { position: relative; }
+.pastilla input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+.pastilla span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 42px;
+  padding: 9px 15px;
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+  background: var(--white);
+  font-size: 14px;
+  font-weight: 650;
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
+}
+.pastilla:hover span { border-color: var(--green); }
+.pastilla input:checked + span { background: var(--green); border-color: var(--green); color: var(--white); }
+.pastilla input:checked + span::before { content: '✓'; font-weight: 900; } /* el estado no depende solo del color */
+.pastilla input:focus-visible + span { outline: 3px solid var(--orange); outline-offset: 2px; }
+.pastilla input:active + span { transform: scale(0.97); }
+
+.consentimiento { display: flex; gap: 10px; align-items: flex-start; padding: 14px; border-radius: 14px; background: var(--green-soft); font-size: 13px; line-height: 1.5; }
+.consentimiento input { width: 20px; height: 20px; flex-shrink: 0; margin: 0; accent-color: var(--green); }
+

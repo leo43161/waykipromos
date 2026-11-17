@@ -1,0 +1,51 @@
+.header { background: var(--mint); }
+.in { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 68px; }
+
+/* ---------- Celular: barra fija abajo ---------- */
+.nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding: 6px 6px max(6px, env(safe-area-inset-bottom));
+  background: var(--white);
+  border-top: 1px solid var(--line);
+  box-shadow: 0 -8px 24px rgba(13, 50, 54, 0.08);
+}
+.tab { display: grid; justify-items: center; gap: 3px; min-height: 58px; padding: 4px 2px; color: var(--muted); font-size: 11px; font-weight: 700; line-height: 1.2; text-align: center; }
+.icono { position: relative; display: grid; place-items: center; width: 56px; height: 32px; border-radius: 999px; transition: background 0.15s, transform 0.15s; }
+.tab:active .icono { transform: scale(0.92); }
+.tab[aria-current='page'] { color: var(--green); font-weight: 900; }
+.tab[aria-current='page'] .icono { background: var(--green-soft); }
+
+.wayki { width: 30px; height: 30px; border-radius: 50%; background: var(--ticket); box-shadow: 0 0 0 2px var(--orange); }
+.foto { width: 26px; height: 26px; border-radius: 50%; }
+.contador {
+  position: absolute;
+  top: -3px;
+  right: 6px;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  border-radius: 999px;
+  border: 2px solid var(--white);
+  background: var(--orange);
+  color: var(--ink);
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 15px;
+}
+
+/* ---------- Escritorio: tabs en el encabezado ---------- */
+@media (min-width: 900px) {
+  .nav { position: static; display: flex; gap: 4px; padding: 0; background: none; border: 0; box-shadow: none; }
+  .tab { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 6px 16px 6px 8px; border-radius: 999px; color: var(--ink); font-size: 14px; }
+  .tab:hover { background: rgba(255, 255, 255, 0.6); }
+  .icono { width: 32px; }
+  .tab[aria-current='page'] { background: var(--white); color: var(--green); }
+  .tab[aria-current='page'] .icono { background: none; }
+  .contador { right: -4px; border-color: var(--mint); }
+}

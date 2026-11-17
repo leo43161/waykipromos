@@ -1,0 +1,25 @@
+/* Con chatbot: ocupa todo el alto disponible entre el encabezado (68px) y las tabs del celular (76px). */
+.chat { display: flex; }
+.iframe { width: 100%; height: calc(100dvh - 68px - 76px - env(safe-area-inset-bottom)); border: 0; background: var(--white); }
+@media (min-width: 900px) { .iframe { height: calc(100dvh - 68px); } }
+
+/* Sin chatbot todavía: Wayki presentándolo sobre la escena del manual. */
+.pronto { position: relative; overflow: hidden; min-height: calc(100dvh - 68px - 76px); background: var(--mint); }
+.sol { position: absolute; bottom: 150px; right: -110px; width: 300px; aspect-ratio: 1; border-radius: 50%; background: var(--orange); }
+.contenido { position: relative; display: grid; align-content: space-between; gap: 24px; min-height: calc(100dvh - 68px - 76px); padding-top: 32px; }
+.texto { display: grid; gap: 16px; justify-items: start; }
+.texto h1 :global(.display) { font-size: clamp(64px, 16vw, 120px); color: var(--green); }
+.texto p { max-width: 42ch; }
+.escena { display: flex; align-items: flex-start; justify-content: flex-end; gap: 4px; }
+.globo { max-width: 210px; margin-top: 28px; padding: 14px 18px; border-radius: 18px 18px 4px 18px; background: var(--white); box-shadow: 0 8px 20px rgba(13, 50, 54, 0.12); font-weight: 800; }
+.wayki { width: 150px; flex-shrink: 0; }
+
+@media (min-width: 900px) {
+  .pronto { min-height: calc(100dvh - 68px); }
+  .sol { top: 40px; bottom: auto; right: 12%; width: 380px; }
+  .contenido { grid-template-columns: 1fr auto; align-items: end; min-height: calc(100dvh - 68px); padding-top: 0; }
+  .texto { padding-bottom: 96px; }
+  .escena { flex-direction: column; align-items: flex-end; }
+  .globo { max-width: 260px; margin: 0 60px 0 0; }
+  .wayki { width: 280px; }
+}

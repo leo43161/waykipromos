@@ -1,0 +1,4 @@
+/* En el celular las tabs van fijas abajo: que no tapen el final de la página. */
+@media (max-width: 899px) {
+  .body { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+}
