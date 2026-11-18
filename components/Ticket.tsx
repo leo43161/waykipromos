@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { asset } from '@/lib/asset';
-import { CATEGORIAS, fechaCorta, type Promocion } from '@/lib/promociones';
+import { fechaCorta, type Promocion } from '@/lib/promociones';
 import s from './Ticket.module.css';
 
 /**
@@ -24,12 +24,11 @@ export default function Ticket({
   vence?: string;
 }) {
   const Titulo = variante === 'hero' ? 'h2' : 'h3';
-  const categoria = CATEGORIAS.find((c) => c.id === p.categoria)?.nombre;
   return (
     <article className={`${s.ticket} ${s[variante]} ${sello ? s.apagado : ''}`} aria-labelledby={`t-${variante}-${p.id}`}>
       <div className={s.foto}>
-        <img src={asset(p.foto)} alt="" width={800} height={533} loading={variante === 'hero' ? 'eager' : 'lazy'} />
-        {variante !== 'mio' && <span className={s.categoria}>{categoria}</span>}
+        <img src={p.foto} alt="" width={800} height={533} loading={variante === 'hero' ? 'eager' : 'lazy'} />
+        {variante !== 'mio' && <span className={s.categoria}>{p.categoria.nombre}</span>}
         {variante !== 'mio' && p.quedan < 15 && <span className={s.pocos}>¡Quedan {p.quedan}!</span>}
       </div>
       <div className={s.cuerpo}>
@@ -46,7 +45,7 @@ export default function Ticket({
           </li>
           <li>
             <img src={asset('/wayki-promo/iconos/calendario.svg')} alt="" width={16} height={16} />
-            <span>{sello?.tono === 'vencido' ? 'Venció' : 'Hasta'} el {fechaCorta(vence)}</span>
+            <span>{sello?.texto === 'Vencido' ? 'Venció' : 'Hasta'} el {fechaCorta(vence)}</span>
           </li>
         </ul>
         {extra}

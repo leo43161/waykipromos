@@ -20,12 +20,12 @@
  *
  *  El "secreto de cliente" NO va en este proyecto (es público/estático).
  *  Cómo funciona: Google Identity Services (GIS) dibuja el botón oficial,
- *  abre un popup y nos devuelve un `credential` (ID token JWT) → lib/cuenta.ts.
+ *  abre un popup y nos devuelve un `credential` (ID token JWT) → lib/cuenta.ts → POST /auth/google.
  * ========================================================================== */
 
 import Script from 'next/script';
 import { useEffect, useRef, useState } from 'react';
-import { loginWithGoogle, type TouristSession } from '@/lib/cuenta';
+import { ingresarConGoogle, mensajeDeError, type Turista } from '@/lib/cuenta';
 import s from './GoogleLogin.module.css';
 
 const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
@@ -44,17 +44,21 @@ declare global {
 let initialized = false;
 let onCredential: (credential: string) => void = () => {};
 
-/** Botón oficial "Continuar con Google". `onLogin` recibe el perfil (la sesión ya quedó guardada). */
-export default function GoogleLogin({ onLogin }: { onLogin?: (s: TouristSession) => void }) {
+/** Botón oficial "Continuar con Google". `onLogin` recibe el perfil, con la cuenta ya cargada (cupones y encuesta). */
+export default function GoogleLogin({ onLogin }: { onLogin?: (s: Turista) => void }) {
   const buttonRef = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState('');
+  const [entrando, setEntrando] = useState(false);
 
   useEffect(() => {
     onCredential = (credential) => {
-      loginWithGoogle(credential)
-        .then((perfil) => { setError(''); onLogin?.(perfil); })
-        .catch(() => setError('No pudimos completar el ingreso con Google. Probá de nuevo.'));
+      setError('');
+      setEntrando(true);
+      ingresarConGoogle(credential)
+        .then((perfil) => onLogin?.(perfil))
+        .catch((e) => setError(mensajeDeError(e)))
+        .finally(() => setEntrando(false));
     };
   }, [onLogin]);
 
@@ -97,7 +101,8 @@ export default function GoogleLogin({ onLogin }: { onLogin?: (s: TouristSession)
         onReady={() => setReady(true)}
         onError={() => setError('No se pudo cargar Google. Revisá tu conexión o si un bloqueador lo está impidiendo.')}
       />
-      <div ref={buttonRef} className={s.button} aria-busy={!ready} />
+      <div ref={buttonRef} className={s.button} aria-busy={!ready || entrando} />
+      {entrando && <p className={s.estado} role="status">Entrando a tu cuenta…</p>}
       {error && <p className={s.error} role="alert">{error}</p>}
     </>
   );

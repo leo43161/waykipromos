@@ -106,21 +106,21 @@ Reiniciá el servidor (`Ctrl+C` y `npm run dev`). Las variables `NEXT_PUBLIC_*` 
 
 ## 8. Antes de producción (pendiente)
 
-Hoy el login funciona en **modo desarrollo**: `lib/cuenta.ts` decodifica el token en el navegador
+Sin la etapa `login` encendida, el login funciona en **modo simulado**: `lib/simulador.ts` decodifica el token en el navegador
 solo para mostrar nombre/foto. **Eso no es seguro para autorizar nada** (un JWT se puede fabricar).
 Para producción:
 
-1. **Backend que verifique el token** y emita su propia sesión. El contrato está en el §9.
-   El contrato que espera el frontend está en el comentario de `lib/cuenta.ts`.
-2. **Base de datos:** ajustes a `PERSONA`. El SQL está en el §9.
+1. **Backend que verifique el token** y emita su propia sesión: hecho en `projects/api` (§9).
+   Para encenderlo: `NEXT_PUBLIC_API_ETAPAS=login` (variable del repo; ver `lib/api.ts`).
+2. **Base de datos:** la tabla `turistas` sirve como está; faltan dos procedimientos (`projects/api/sql/login_google.sql`).
 3. **Google Cloud:** en el cliente web agregá los orígenes de producción `https://tucumanturismo.gob.ar`
-   y `https://www.tucumanturismo.gob.ar`. Van sin `/waykipromos`, porque un origen no lleva ruta. HTTPS es obligatorio
+   y `https://www.tucumanturismo.gob.ar`. Van sin `/waykipromo`, porque un origen no lleva ruta. HTTPS es obligatorio
    fuera de localhost. Después completá Branding (privacidad, términos, dominio) y en **Público** tocá **Publicar app**.
    Con scopes básicos no hace falta verificación, salvo que subas un logo.
 4. **Variables:** las define el workflow `.github/workflows/deploy.yml` antes de `npm run build`, porque se
    incrustan en el HTML al compilar:
-   - `NEXT_PUBLIC_BASE_PATH=/waykipromos`
-   - `NEXT_PUBLIC_SITE_URL=https://tucumanturismo.gob.ar/waykipromos`
+   - `NEXT_PUBLIC_BASE_PATH=/waykipromo`
+   - `NEXT_PUBLIC_SITE_URL=https://tucumanturismo.gob.ar/waykipromo`
    - `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, tomado de la *Variable* del repo con ese mismo nombre.
 
    Guía completa del deploy: `deploy/README.md` en la carpeta raíz de Wayki Promo.
@@ -129,11 +129,11 @@ Para producción:
 
 - **One Tap** (el cartelito "Continuar como…" arriba a la derecha): `google.accounts.id.prompt()` después
   de `initialize()` en `components/GoogleLogin.tsx`.
-- **Encuesta turística**: hecha (se pide una sola vez, con el primer cupón; `components/Encuesta.tsx`). Falta guardarla en el backend.
+- **Encuesta turística**: hecha (se pide una sola vez, con el primer cupón; `components/Encuesta.tsx`). Se guarda con la etapa `encuesta` (ver `api-doc/pedidos-backend.html`).
 
 ## 9. Contrato para la API (backend)
 
-> `TODO(backend)`: la API todavía no existe. Esto es lo que el frontend espera.
+> Lo que Google entrega y cómo lo usa la API.
 
 ### 9.1 Qué devuelve Google
 
@@ -161,99 +161,18 @@ un **ID token**: un JWT firmado por Google. Su contenido (payload) se ve así:
 
 | Campo | Uso |
 |---|---|
-| `sub` | **Clave de la persona.** Es el ID de la cuenta Google: único y nunca cambia. Va en `PERSONA.googlesub`. |
+| `sub` | **Clave de la persona.** Es el ID de la cuenta Google: único y nunca cambia. Va en `turistas.google_sub`. |
 | `email` | Sirve para contactar a la persona, no para identificarla, porque puede cambiar. Confiá en él solo si `email_verified` es `true`. |
-| `given_name` / `family_name` | Van a `PERSONA.nombre` y `PERSONA.apellido`. **Pueden faltar**: en ese caso usá `name` o un string vacío. |
+| `given_name` / `family_name` | Van a `turistas.nombre` y `turistas.apellido`. **Pueden faltar**: en ese caso usá `name` o un string vacío. |
 | `picture` | URL de la foto. Puede cambiar, así que conviene actualizarla en cada login. |
 | `hd` | Solo aparece en cuentas de Google Workspace. En turistas casi nunca viene. |
 | `iss`, `aud`, `azp`, `exp`, `iat`, `nbf`, `jti` | Sirven para verificar el token. No se guardan. |
 
 Google **no** entrega DNI, teléfono ni procedencia. Esos datos se piden en la encuesta post-login.
 
-### 9.2 Flujo
+### 9.2 Flujo, endpoints y base
 
-```
-Front ──{ credential }──▶ POST /auth/google ──▶ 1. verificar el token con la librería oficial
-                                                 2. buscar o crear la PERSONA por sub
-                                                 3. crear una sesión propia (cookie)
-Front ◀──perfil + Set-Cookie─────────────────────
-```
-
-1. **Verificar en el servidor, siempre.** Usá `google-auth-library` (Node) o `google/apiclient` (PHP).
-   La librería controla la firma, que `aud` sea el Client ID, que `iss` sea `accounts.google.com` o
-   `https://accounts.google.com` y que no haya vencido (`exp`).
-   Solo necesita el **Client ID**, que es el mismo valor que usa el front. **No** hace falta el client secret.
-2. **Buscar o crear la persona:**
-   - buscar por `googlesub = sub` (con `borrado = 0`);
-   - si no existe, crearla con `googlesub`, `email`, `nombre` y `apellido`, y `password` en `NULL`;
-   - si en el futuro hay cuentas con contraseña, vincular por email **solo** si `email_verified` es `true`;
-   - si está `desactivado`, responder 403.
-3. **Crear la sesión propia.** El ID token vence en 1 hora y no se usa como sesión. Emití una cookie
-   `httpOnly; Secure; SameSite=Lax` con un id de sesión opaco o un JWT propio.
-4. **Desde ahí, la persona sale de la cookie.** Nunca aceptes `idpersona` desde el front: para guardar
-   un cupón alcanza con `POST /cupones { idpromocion }`.
-
-Ejemplo en Node (Express):
-
-```js
-import { OAuth2Client } from 'google-auth-library';
-const google = new OAuth2Client();
-
-app.post('/auth/google', express.json(), async (req, res) => {
-  let p;
-  try {
-    p = (await google.verifyIdToken({ idToken: req.body.credential, audience: process.env.GOOGLE_CLIENT_ID })).getPayload();
-  } catch {
-    return res.status(401).json({ error: 'Token de Google inválido' });
-  }
-  const persona = await buscarOCrearPersona(p); // por p.sub
-  if (persona.desactivado) return res.status(403).end();
-  const sid = await crearSesion(persona.idpersona);
-  res.cookie('wayki_sid', sid, { httpOnly: true, secure: true, sameSite: 'lax', maxAge: 30 * 864e5 });
-  res.json(perfil(persona, p.picture));
-});
-```
-
-En PHP: `$payload = (new Google_Client(['client_id' => $clientId]))->verifyIdToken($credential);`.
-Devuelve el payload como array, o `false` si el token es inválido.
-
-### 9.3 Endpoints
-
-| Método | Ruta | Body | Respuesta |
-|---|---|---|---|
-| `POST` | `/auth/google` | `{ credential }` | 200 con el perfil y la cookie · 401 si el token es inválido · 403 si la persona está desactivada |
-| `GET` | `/auth/me` | — | 200 con el perfil · 401 si no hay sesión |
-| `POST` | `/auth/logout` | — | 204 y borra la cookie |
-| `PATCH` | `/personas/me` | `{ dni, telefono, procedencia }` | 200 con el perfil (encuesta post-login) |
-
-El perfil tiene esta forma:
-
-```json
-{ "idpersona": 123, "nombre": "Ana", "apellido": "Pérez", "email": "turista@gmail.com",
-  "foto": "https://lh3.googleusercontent.com/...", "perfilCompleto": false }
-```
-
-`perfilCompleto` es `false` si falta `dni`, `telefono` o `procedencia`. En ese caso el front muestra la encuesta.
-
-**CORS y cookies:** lo más simple es que la API viva en el mismo sitio que el front, por ejemplo
-`tucumanturismo.gob.ar/api/…` o `api.tucumanturismo.gob.ar`. Así `SameSite=Lax` funciona.
-Si la API va en otro dominio, la cookie necesita `SameSite=None; Secure`, y el CORS tiene que permitir el origen exacto
-(nunca `*`) y enviar `Access-Control-Allow-Credentials: true`. En el front: `fetch(..., { credentials: 'include' })`.
-
-### 9.4 Cambios en la tabla `PERSONA`
-
-Con el modelo actual (`db/2026_WUAKI_PROMO_DB_vFDM.png`) el alta con Google falla por tres motivos:
-- `email VARCHAR(45)` es corto, porque un email puede tener hasta 254 caracteres;
-- `dni` y `telefono` son NOT NULL y Google no los entrega;
-- no hay dónde guardar el `sub`.
-
-```sql
-ALTER TABLE PERSONA
-  ADD COLUMN googlesub VARCHAR(255) NULL,
-  ADD UNIQUE KEY uq_persona_googlesub (googlesub),
-  ADD COLUMN foto VARCHAR(500) NULL,          -- opcional
-  MODIFY email    VARCHAR(255) NOT NULL,
-  MODIFY telefono VARCHAR(15)  NULL,          -- se completa en la encuesta
-  MODIFY dni      INT          NULL,          -- ídem
-  MODIFY password VARCHAR(255) NULL;          -- NULL en cuentas Google; 45 no alcanza ni para un hash bcrypt (60)
-```
+Ya no son un borrador: el login está hecho en `projects/api` (`POST /auth/google`, `GET /turista/perfil`, con los
+procedimientos de `projects/api/sql/login_google.sql`). El contrato completo y lo que falta para encenderlo están en
+`api-doc/pedidos-backend.html` (pestaña "1 · Login"), en la carpeta raíz de Wayki Promo. Del lado de la app, el contrato
+vive en `lib/api.ts` y se enciende con la etapa `login` de `NEXT_PUBLIC_API_ETAPAS`.

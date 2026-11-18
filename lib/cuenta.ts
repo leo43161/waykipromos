@@ -1,142 +1,189 @@
-// Cuenta del turista: sesión de Google, encuesta y cupones — MODO DESARROLLO (todavía no hay backend).
-//
-// Se guarda en localStorage para que el ingreso y la encuesta se pidan UNA sola vez (con el primer cupón)
-// y sigan ahí en la próxima visita. La encuesta y los cupones quedan asociados a la cuenta de Google (`sub`):
-// cerrar sesión no los borra y al volver a ingresar con la misma cuenta reaparecen, como pasará con el backend.
-// ⚠️ El ID token se decodifica SIN verificar y el código del cupón se genera acá: nada de esto autoriza nada.
-//
-// TODO(backend) — contrato esperado (detalle del login en docs/GOOGLE_AUTH.md §9):
-//   POST /auth/google                 body { credential }  → perfil + cookie de sesión httpOnly
-//   GET  /persona                     → { perfil, encuesta | null, cupones: CuponReclamado[] }  (reemplaza a localStorage)
-//   POST /auth/logout                 → 204
-//   PUT  /persona/encuesta            body: Encuesta → 204 (columnas nuevas en PERSONA o tabla ENCUESTA;
-//                                     hoy PERSONA solo tiene `procedencia`)
-//   POST /promociones/{id}/adquirir   → 201 CuponReclamado  (fila en ADQUIERE)
-//        El servidor valida: sesión, encuesta completa, promoción PUBLICADA y vigente, stock, un cupón por persona
-//        y promoción. El código (7 caracteres, ADQUIERE.codigo) lo genera SIEMPRE el servidor.
-//        Errores: 401 sin sesión · 409 ya lo tenés · 410 agotada o vencida · 428 falta la encuesta.
-//   El canje (ADQUIERE.canjeado / fechacanje) lo hace el empleado desde el panel admin, nunca el turista.
+// Cuenta del turista: sesión (token de la API), encuesta y cupones. Etapas "login", "encuesta" y "cupones" de
+// lib/api.ts: mientras no estén activadas, las responde lib/simulador.ts con el mismo formato.
+// Un solo estado para toda la página: se carga una vez y cada componente se suscribe con useCuenta().
+// El turista nunca decide nada: el código del cupón, el stock y si ya respondió la encuesta los define el servidor.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
+import { api, ErrorApi, type CuponApi, type EncuestaApi, type Etapa, type LoginApi, type OpcionesEncuestaApi, type RespuestasApi, type TuristaApi } from '@/lib/api';
+import { aPromocion, type Promocion } from '@/lib/promociones';
 
-export type TouristSession = {
-  sub: string; // id único y estable de la cuenta Google (usar esto, no el email, como clave)
-  email: string;
-  name: string;
-  givenName: string;
-  picture?: string;
-};
+export type Turista = { id: number; nombre: string; nombreCompleto: string; email: string; foto: string | null };
+export type EstadoCupon = 'disponible' | 'usado' | 'vencido' | 'anulado';
+export type Cupon = { codigo: string; estado: EstadoCupon; vence: string; promo: Promocion };
+export type { RespuestasApi as Respuestas, EncuestaApi, OpcionesEncuestaApi } from '@/lib/api';
 
-// Respuestas = el texto exacto de la opción elegida (opciones cerradas en components/Encuesta.tsx).
-export type Encuesta = {
-  residencia: string;     // provincia o país → PERSONA.procedencia
-  motivo: string;
-  conQuien: string;
-  noches: string;         // rango ("1 a 2 noches"…)
-  medio: string;          // cómo se enteró del destino
-  edad: string;           // rango
-  consentimiento: true;
-};
+type Estado = { listo: boolean; sesion: Turista | null; encuesta: RespuestasApi | null; cupones: Cupon[]; error: string };
+const SIN_SESION: Estado = { listo: true, sesion: null, encuesta: null, cupones: [], error: '' };
+const INICIAL: Estado = { ...SIN_SESION, listo: false }; // el HTML estático sale así: nada de "sin sesión" por un instante
 
-export type CuponReclamado = {
-  promoId: string;
-  codigo: string;
-  vence: string;        // yyyy-mm-dd (ADQUIERE.fechavencimiento)
-  canjeado?: string;    // yyyy-mm-dd (ADQUIERE.fechacanje); lo marca el backend al canjear
-};
+let estado = INICIAL;
+const oyentes = new Set<() => void>();
+function fijar(cambio: Partial<Estado>) {
+  estado = { ...estado, ...cambio };
+  oyentes.forEach((f) => f());
+}
 
-export type EstadoCupon = 'disponible' | 'usado' | 'vencido';
+/** Texto para mostrar de cualquier error (los de la API ya vienen escritos para el turista). */
+export const mensajeDeError = (e: unknown) => (e instanceof ErrorApi ? e.message : 'Algo falló. Probá de nuevo en un rato.');
 
-type Datos = { encuesta: Encuesta | null; cupones: CuponReclamado[] };
+/** La sesión dejó de valer: token ausente/vencido (401), alterado (403 TOKEN_INVALIDO) o cuenta suspendida. */
+const esSesionInvalida = (e: unknown) =>
+  e instanceof ErrorApi &&
+  (e.http === 401 || (e.http === 403 && e.codigo === 'TOKEN_INVALIDO') || e.codigo === 'TURISTA_SUSPENDIDO');
 
-const K_SESION = 'wayki-turista-sesion';
-const kDatos = (sub: string) => `wayki-turista-datos-${sub}`;
-const EVENTO = 'wayki-cuenta'; // avisa a los componentes montados que algo cambió
+// ---------- Token de la API ----------
 
-function leer<T>(clave: string, vacio: T): T {
+const K_TOKEN = 'wayki-turista-token';
+/** Vencimiento (ms) leído del claim `exp` del propio JWT. La API oficial no manda `expira_en` aparte. */
+function venceEn(token: string): number {
   try {
-    return JSON.parse(localStorage.getItem(clave) ?? 'null') ?? vacio;
+    const b = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    const exp = JSON.parse(atob(b + '='.repeat((4 - (b.length % 4)) % 4))).exp;
+    return typeof exp === 'number' ? exp * 1000 : 0;
   } catch {
-    return vacio;
+    return 0;
   }
 }
-function escribir(clave: string, valor: unknown) {
+function leerToken(): string | null {
   try {
-    if (valor === null) localStorage.removeItem(clave);
-    else localStorage.setItem(clave, JSON.stringify(valor));
+    const token = localStorage.getItem(K_TOKEN);
+    return token && venceEn(token) > Date.now() ? token : null;
   } catch {
-    // navegación privada o storage bloqueado: la UI sigue funcionando, solo que no recuerda
+    return null;
   }
-  window.dispatchEvent(new Event(EVENTO));
+}
+function guardarToken(token: string | null) {
+  try {
+    if (token) localStorage.setItem(K_TOKEN, token);
+    else localStorage.removeItem(K_TOKEN);
+  } catch {
+    // navegación privada o storage bloqueado: la sesión dura lo que dure la pestaña
+  }
 }
 
-/** Decodifica (sin verificar) la parte central de un JWT. Soporta tildes y ñ. */
-function decodeJwtPayload(jwt: string): Record<string, string> {
-  const b64 = jwt.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-  const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-  return JSON.parse(new TextDecoder().decode(bytes));
+/** Pedido como turista. Si la sesión dejó de valer, se cierra sola. */
+async function comoTurista<T>(etapa: Etapa, metodo: 'GET' | 'POST', ruta: string, cuerpo?: unknown): Promise<T> {
+  try {
+    return await api<T>(etapa, metodo, ruta, { cuerpo, token: leerToken() });
+  } catch (e) {
+    if (esSesionInvalida(e)) cerrarSesion();
+    throw e;
+  }
 }
 
-export async function loginWithGoogle(credential: string): Promise<TouristSession> {
-  const p = decodeJwtPayload(credential);
-  const sesion: TouristSession = { sub: p.sub, email: p.email, name: p.name, givenName: p.given_name ?? p.name, picture: p.picture };
-  escribir(K_SESION, sesion);
+// ---------- Adaptadores (si cambia el contrato, se toca solo acá) ----------
+
+const aTurista = (t: TuristaApi): Turista => ({
+  id: t.id ?? t.turistas_id ?? 0,
+  nombre: t.nombre || t.nombre_completo?.split(' ')[0] || '',
+  nombreCompleto: t.nombre_completo || [t.nombre, t.apellido].filter(Boolean).join(' ') || t.email,
+  email: t.email,
+  foto: t.foto_url ?? null,
+});
+
+/** Si la API manda solo la fecha, el cupón vale hasta el final de ese día en Tucumán. */
+const finDe = (iso: string) => new Date(iso.length === 10 ? `${iso}T23:59:59-03:00` : iso);
+const dia = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+function aCupon(c: CuponApi): Cupon {
+  const vence = finDe(c.vence_el);
+  const estado: EstadoCupon =
+    c.estado === 'CANJEADO' ? 'usado'
+    : c.estado === 'ANULADO' ? 'anulado'
+    : c.estado === 'VENCIDO' || vence.getTime() < Date.now() ? 'vencido'
+    : 'disponible';
+  return { codigo: c.codigo, estado, vence: dia(vence), promo: aPromocion(c.promocion) };
+}
+
+// ---------- Carga ----------
+
+async function cargarDatos() {
+  const [cupones, encuesta] = await Promise.all([
+    comoTurista<CuponApi[]>('cupones', 'GET', '/turista/cupones'),
+    comoTurista<RespuestasApi | null>('encuesta', 'GET', '/turista/encuesta'),
+  ]);
+  fijar({ listo: true, cupones: cupones.map(aCupon), encuesta, error: '' });
+}
+
+let carga: Promise<void> = Promise.resolve();
+/** Lee la sesión guardada y la valida con GET /auth/perfil. También sirve para "Probar de nuevo". */
+export function recargarCuenta() {
+  carga = cargar();
+  return carga;
+}
+/** Espera la carga en curso: así no se le pide Google a quien ya tiene sesión y tocó un cupón muy rápido. */
+export const esperarCuenta = () => carga;
+
+async function cargar() {
+  if (!leerToken()) return fijar(SIN_SESION);
+  try {
+    fijar({ sesion: aTurista(await comoTurista<TuristaApi>('login', 'GET', '/auth/perfil')) });
+    await cargarDatos();
+  } catch (e) {
+    // Si la sesión dejó de valer, comoTurista ya la cerró; no mostramos error, solo quedamos sin sesión.
+    if (!esSesionInvalida(e)) fijar({ listo: true, error: mensajeDeError(e) });
+  }
+}
+
+// ---------- Acciones ----------
+
+/** POST /auth/google con el `credential` del botón de Google. Vuelve con la cuenta ya cargada (cupones y encuesta). */
+export async function ingresarConGoogle(credential: string): Promise<Turista> {
+  const r = await api<LoginApi>('login', 'POST', '/auth/google', { cuerpo: { id_token: credential } });
+  guardarToken(r.token);
+  const sesion = aTurista(r.turista);
+  fijar({ sesion, error: '' });
+  await cargarDatos().catch((e) => fijar({ listo: true, error: mensajeDeError(e) }));
   return sesion;
 }
 
-export const getSession = () => leer<TouristSession | null>(K_SESION, null);
-
-export function logout() {
-  escribir(K_SESION, null);
+/** Con un JWT sin estado no hace falta endpoint: se borra el token. Los cupones y la encuesta siguen en la cuenta. */
+export function cerrarSesion() {
+  guardarToken(null);
+  fijar(SIN_SESION);
   window.google?.accounts.id.disableAutoSelect();
 }
 
-function getDatos(): Datos {
-  const s = getSession();
-  return s ? leer<Datos>(kDatos(s.sub), { encuesta: null, cupones: [] }) : { encuesta: null, cupones: [] };
-}
-function setDatos(cambio: Partial<Datos>) {
-  const s = getSession();
-  if (s) escribir(kDatos(s.sub), { ...getDatos(), ...cambio });
+export async function guardarEncuesta(e: EncuestaApi) {
+  fijar({ encuesta: await comoTurista<RespuestasApi>('encuesta', 'POST', '/turista/encuesta', e) });
 }
 
-export const getEncuesta = () => getDatos().encuesta;
-export const guardarEncuesta = (encuesta: Encuesta) => setDatos({ encuesta });
-
-/** Simula POST /promociones/{id}/adquirir. Si ya lo tenía, devuelve el mismo cupón. */
-export function reclamarCupon(promoId: string, venceHasta: string): CuponReclamado {
-  const { cupones } = getDatos();
-  const existente = cupones.find((c) => c.promoId === promoId);
-  if (existente) return existente;
-  // Mismo alfabeto que el demo (sin 0/O/1/I para dictarlo sin errores).
-  const abc = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  const azar = crypto.getRandomValues(new Uint8Array(6));
-  const cupon = { promoId, codigo: 'W' + Array.from(azar, (n) => abc[n % abc.length]).join(''), vence: venceHasta };
-  setDatos({ cupones: [cupon, ...cupones] });
+/** POST /turista/cupones. Si ya lo tenía, el servidor devuelve el mismo cupón (no duplica). */
+export async function reclamarCupon(promocionId: number): Promise<Cupon> {
+  const cupon = aCupon(await comoTurista<CuponApi>('cupones', 'POST', '/turista/cupones', { promocion_id: promocionId }));
+  fijar({ cupones: [cupon, ...estado.cupones.filter((c) => c.codigo !== cupon.codigo)] });
   return cupon;
 }
 
-export function estadoCupon(c: CuponReclamado, hoy = new Date()): EstadoCupon {
-  if (c.canjeado) return 'usado';
-  const hoyIso = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
-  return c.vence < hoyIso ? 'vencido' : 'disponible'; // vale todo el día del vencimiento
+let opciones: Promise<OpcionesEncuestaApi> | null = null;
+/** GET /encuesta/opciones (público). Se pide una vez por visita. */
+export function opcionesEncuesta() {
+  opciones ??= api<OpcionesEncuestaApi>('encuesta', 'GET', '/encuesta/opciones').catch((e) => {
+    opciones = null; // que "Probar de nuevo" vuelva a pedirlas
+    throw e;
+  });
+  return opciones;
 }
 
-/**
- * Estado de la cuenta para los componentes. `listo` es false hasta leer el navegador: el HTML estático sale
- * "sin sesión" y así se evita mostrar un estado equivocado por un instante.
- */
+// ---------- Hook ----------
+
+const suscribir = (f: () => void) => {
+  oyentes.add(f);
+  return () => void oyentes.delete(f);
+};
+let iniciada = false;
+
+/** Estado actual sin suscribirse (para decidir dentro de un evento). */
+export const leerCuenta = () => estado;
+
+/** Estado de la cuenta. `listo` es false hasta leer el navegador y validar el token con la API. */
 export function useCuenta() {
-  const [estado, setEstado] = useState({ listo: false, sesion: null as TouristSession | null, encuesta: null as Encuesta | null, cupones: [] as CuponReclamado[] });
+  const e = useSyncExternalStore(suscribir, () => estado, () => INICIAL);
   useEffect(() => {
-    const actualizar = () => setEstado({ listo: true, sesion: getSession(), ...getDatos() });
-    actualizar();
-    window.addEventListener(EVENTO, actualizar);
-    window.addEventListener('storage', actualizar); // otra pestaña
-    return () => {
-      window.removeEventListener(EVENTO, actualizar);
-      window.removeEventListener('storage', actualizar);
-    };
+    if (iniciada) return;
+    iniciada = true;
+    recargarCuenta();
+    window.addEventListener('storage', (ev) => { if (ev.key === K_TOKEN) recargarCuenta(); }); // otra pestaña
   }, []);
-  return estado;
+  return e;
 }

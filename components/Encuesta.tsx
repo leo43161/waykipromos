@@ -1,68 +1,69 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
-import { guardarEncuesta, type Encuesta as Datos } from '@/lib/cuenta';
+// Encuesta del Ente (CU-15), una sola vez. Las preguntas son texto de la app; las OPCIONES vienen de la API
+// (GET /encuesta/opciones, con los ids de las tablas de la base) y se manda POST /turista/encuesta con esos ids.
+
+import { useEffect, useState, type FormEvent } from 'react';
+import { guardarEncuesta, mensajeDeError, opcionesEncuesta, type EncuestaApi, type OpcionesEncuestaApi } from '@/lib/cuenta';
 import s from './Encuesta.module.css';
 
-// Preguntas definidas por el Ente (2026-11-16). Opciones cerradas para poder tabularlas.
-// Si cambian, actualizar también el tipo Encuesta en lib/cuenta.ts (es el contrato con el backend).
-const PROVINCIAS = [
-  'Tucumán', 'Buenos Aires', 'Catamarca', 'Chaco', 'Chubut', 'Ciudad Autónoma de Buenos Aires', 'Córdoba',
-  'Corrientes', 'Entre Ríos', 'Formosa', 'Jujuy', 'La Pampa', 'La Rioja', 'Mendoza', 'Misiones', 'Neuquén',
-  'Río Negro', 'Salta', 'San Juan', 'San Luis', 'Santa Cruz', 'Santa Fe', 'Santiago del Estero', 'Tierra del Fuego',
-];
-const PAISES = ['Bolivia', 'Brasil', 'Chile', 'Paraguay', 'Perú', 'Uruguay', 'Otro país de América', 'Europa', 'Otro país'];
-
 const PREGUNTAS = [
-  {
-    nombre: 'motivo',
-    pregunta: '¿Cuál es el motivo principal de tu visita?',
-    opciones: ['Vacaciones / Ocio / Recreación', 'Visita a familiares o amigos', 'Trabajo / Negocios / Congresos', 'Deporte / Eventos culturales', 'Soy residente local'],
-  },
-  {
-    nombre: 'conQuien',
-    pregunta: '¿Con quién viajás?',
-    opciones: ['Solo/a', 'En pareja', 'En familia (con niños/as)', 'En familia (solo adultos)', 'Con amigos/as', 'En grupo organizado / excursión'],
-  },
-  {
-    nombre: 'noches',
-    pregunta: '¿Cuántas noches te quedás (o te vas a quedar)?',
-    opciones: ['No me quedo a dormir (voy y vuelvo en el día / soy local)', '1 a 2 noches', '3 a 5 noches', '6 noches o más'],
-  },
-  {
-    nombre: 'medio',
-    pregunta: '¿Por qué medio te enteraste del destino?',
-    opciones: ['Redes sociales (Instagram, TikTok, Facebook)', 'Recomendación de amigos o familiares', 'Cartelería / Vía pública / Oficinas de turismo', 'Medios tradicionales (radio, TV, diarios)', 'Buscadores de internet (Google)'],
-  },
-  {
-    nombre: 'edad',
-    pregunta: '¿En qué rango de edad estás?',
-    opciones: ['Menor de 18 años', '18 a 29 años', '30 a 44 años', '45 a 59 años', '60 años o más'],
-  },
+  { nombre: 'motivo_id', lista: 'motivos', pregunta: '¿Cuál es el motivo principal de tu visita?' },
+  { nombre: 'compania_id', lista: 'companias', pregunta: '¿Con quién viajás?' },
+  { nombre: 'duracion_id', lista: 'duraciones', pregunta: '¿Cuántas noches te quedás (o te vas a quedar)?' },
+  { nombre: 'medio_id', lista: 'medios', pregunta: '¿Por qué medio te enteraste del destino?' },
+  { nombre: 'rango_edad_id', lista: 'rangos_edad', pregunta: '¿En qué rango de edad estás?' },
 ] as const;
 
 export default function Encuesta({ textoBoton, onListo }: { textoBoton: string; onListo: () => void }) {
+  const [opciones, setOpciones] = useState<OpcionesEncuestaApi | null>(null);
+  const [errorCarga, setErrorCarga] = useState('');
   const [error, setError] = useState('');
+  const [enviando, setEnviando] = useState(false);
 
-  function enviar(e: FormEvent<HTMLFormElement>) {
+  function cargar() {
+    setErrorCarga('');
+    opcionesEncuesta().then(setOpciones, (e) => setErrorCarga(mensajeDeError(e)));
+  }
+  useEffect(cargar, []);
+
+  async function enviar(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
-    const v = (k: string) => String(f.get(k) ?? '');
+    const id = (k: string) => Number(f.get(k)) || null;
+    // Residencia: "p:5" = provincia argentina; "x:43" = otro país. Se manda una de las dos.
+    const [tipo, residencia] = String(f.get('residencia') ?? ':').split(':');
     // El navegador ya exige todo con `required`; esto cubre navegadores viejos.
-    if (['residencia', ...PREGUNTAS.map((p) => p.nombre)].some((k) => !v(k))) {
-      return setError('Te falta responder alguna pregunta.');
+    if (!residencia || PREGUNTAS.some((p) => !id(p.nombre))) return setError('Te falta responder alguna pregunta.');
+    setError('');
+    setEnviando(true);
+    try {
+      await guardarEncuesta({
+        rango_edad_id: id('rango_edad_id'),
+        duracion_id: id('duracion_id'),
+        motivo_id: id('motivo_id'),
+        compania_id: id('compania_id'),
+        medio_id: id('medio_id'),
+        provincia_id: tipo === 'p' ? Number(residencia) : null,
+        pais_id: tipo === 'x' ? Number(residencia) : null,
+      } as EncuestaApi);
+      onListo();
+    } catch (err) {
+      setError(mensajeDeError(err));
+    } finally {
+      setEnviando(false);
     }
-    guardarEncuesta({
-      residencia: v('residencia'),
-      motivo: v('motivo'),
-      conQuien: v('conQuien'),
-      noches: v('noches'),
-      medio: v('medio'),
-      edad: v('edad'),
-      consentimiento: true,
-    } satisfies Datos);
-    onListo();
   }
+
+  if (errorCarga) {
+    return (
+      <div className={s.form}>
+        <p className="form-error" role="alert">{errorCarga}</p>
+        <button type="button" className="btn secondary full" onClick={cargar}>Probar de nuevo</button>
+      </div>
+    );
+  }
+  if (!opciones) return <p className="muted" role="status">Cargando las preguntas…</p>;
 
   return (
     <form className={s.form} onSubmit={enviar}>
@@ -71,10 +72,10 @@ export default function Encuesta({ textoBoton, onListo }: { textoBoton: string; 
         <select name="residencia" required defaultValue="">
           <option value="" disabled>Elegí tu lugar de residencia</option>
           <optgroup label="Argentina">
-            {PROVINCIAS.map((x) => <option key={x}>{x}</option>)}
+            {opciones.provincias.map((o) => <option key={o.id} value={`p:${o.id}`}>{o.nombre}</option>)}
           </optgroup>
           <optgroup label="Otro país">
-            {PAISES.map((x) => <option key={x}>{x}</option>)}
+            {opciones.paises.map((o) => <option key={o.id} value={`x:${o.id}`}>{o.nombre}</option>)}
           </optgroup>
         </select>
         <small>Donde vivís habitualmente.</small>
@@ -84,11 +85,11 @@ export default function Encuesta({ textoBoton, onListo }: { textoBoton: string; 
         <fieldset key={p.nombre} className={s.grupo}>
           <legend>{p.pregunta}</legend>
           <div className={s.pastillas}>
-            {p.opciones.map((o, i) => (
-              <label key={o} className={s.pastilla}>
+            {opciones[p.lista].map((o, i) => (
+              <label key={o.id} className={s.pastilla}>
                 {/* un required en el grupo alcanza para que el navegador exija elegir una opción */}
-                <input type="radio" name={p.nombre} value={o} required={i === 0} />
-                <span>{o}</span>
+                <input type="radio" name={p.nombre} value={o.id} required={i === 0} />
+                <span>{o.nombre}</span>
               </label>
             ))}
           </div>
@@ -101,7 +102,7 @@ export default function Encuesta({ textoBoton, onListo }: { textoBoton: string; 
       </label>
 
       {error && <p className="form-error" role="alert">{error}</p>}
-      <button type="submit" className="btn accent full">{textoBoton}</button>
+      <button type="submit" className="btn accent full" disabled={enviando}>{enviando ? 'Guardando…' : textoBoton}</button>
     </form>
   );
 }

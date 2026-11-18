@@ -10,6 +10,8 @@ name: Deploy Wayki Promo · Turista a cPanel
 # Variables del repo (pestaña Variables; no son secretas, quedan en el HTML publicado):
 #   NEXT_PUBLIC_GOOGLE_CLIENT_ID                     → ID de cliente OAuth (docs/GOOGLE_AUTH.md)
 #   NEXT_PUBLIC_WAYKI_IA_URL                         → URL del chatbot Wayki IA (opcional; vacía = "muy pronto")
+#   NEXT_PUBLIC_API_ETAPAS                           → etapas que usan la API real: login,catalogo,encuesta,cupones
+#                                                      (vacía = todo simulado en el navegador; ver lib/api.ts)
 
 on:
   push:
@@ -47,6 +49,8 @@ jobs:
           NEXT_PUBLIC_SITE_URL: https://tucumanturismo.gob.ar/waykipromo
           NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
           NEXT_PUBLIC_WAYKI_IA_URL: ${{ vars.NEXT_PUBLIC_WAYKI_IA_URL }}
+          NEXT_PUBLIC_API_URL: https://tucumanturismo.gob.ar/waykipromo/api
+          NEXT_PUBLIC_API_ETAPAS: ${{ vars.NEXT_PUBLIC_API_ETAPAS }}
 
       # El ZIP no incluye la carpeta out/, solo su contenido.
       - name: Compress build output

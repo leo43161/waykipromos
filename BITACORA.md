@@ -4,6 +4,69 @@ Registro de sesiones de trabajo. Lo más nuevo arriba. Formato: fecha, qué se h
 
 ---
 
+## 2026-11-18 (tarde) — App adaptada a la API oficial (login)
+
+**Hecho**
+- Llegó la API oficial del equipo de backend (repo `waykipromos-api`, PHP 8.4+). Tres cambios en el front para hablar
+  su dialecto, sin tocar nada más (las etapas siguen simuladas hasta prenderlas):
+  1. El vencimiento del token sale del claim `exp` del propio JWT (`venceEn` en `lib/cuenta.ts`); la API no manda
+     `expira_en`. El token se guarda como string pelado en `localStorage` (antes era `{token, expira_en}`).
+  2. El perfil se valida con `GET /auth/perfil` (antes `/turista/perfil`). Devuelve el contenido del token
+     (`turistas_id`, `nombre`, `email`, `rol`), sin foto: `aTurista` ahora tolera las dos formas.
+  3. La sesión se cierra sola también con `403 TOKEN_INVALIDO` (nuevo `esSesionInvalida`), además de 401 y suspendido.
+- `lib/api.ts`: `TuristaApi` con casi todo opcional (dos formas: `/auth/google` vs `/auth/perfil`); `LoginApi` sin
+  `expira_en`. `lib/simulador.ts`: espejo del mismo contrato (`/auth/perfil`, login sin `expira_en`).
+- **Probado contra la nube** (`https://tucumanturismo.gob.ar/waykipromo/api`, etapa `login` prendida en local): token con
+  `exp` futuro → llama a `/auth/perfil`, recibe 403 `TOKEN_INVALIDO` y cierra sesión sin error; token vencido → ni pega
+  a la nube; sin token → sin sesión. Los códigos reales (401 `TOKEN_REQUERIDO`, 403 `TOKEN_INVALIDO`, 401
+  `GOOGLE_TOKEN_INVALIDO`) coinciden con lo que la app espera. Build OK.
+
+**Pendientes (backend, en `api-doc/pedidos-backend.html`)**
+- Falta que la API valide `aud` contra el Client ID, ponga `RoleMiddleware` en `/admin/*` y `/comercio/*`, y un
+  `GET /turista/perfil` que lea la tabla y traiga `foto_url` (hoy, al recargar, se pierde el avatar).
+- Para que ande Google en producción: autorizar `https://tucumanturismo.gob.ar` en Google Cloud y cargar
+  `GOOGLE_CLIENT_ID` en el `.env` del servidor.
+
+---
+
+## 2026-11-18 — Front listo para la API, por etapas
+
+**Hecho**
+- `lib/api.ts`: cliente (`api()`, `ErrorApi`) y contrato (`*Api`). Etapas `login`, `catalogo`, `encuesta`, `cupones`:
+  las que están en `NEXT_PUBLIC_API_ETAPAS` van a `NEXT_PUBLIC_API_URL`; el resto lo responde `lib/simulador.ts`
+  con el mismo formato y códigos de error (el seed y el localStorage de antes viven ahí ahora).
+- `lib/cuenta.ts`: estado único (`useSyncExternalStore`), token de la API, `GET /turista/perfil` al abrir, 401 cierra
+  la sesión, `esperarCuenta()` para no pedir Google a quien ya tiene sesión.
+- Catálogo pedido al compilar (`app/page.tsx`, sigue en el HTML para SEO) y refrescado en el navegador. Categorías y
+  localidades salen de los datos. Estados de carga, error y "todavía no hay cupones".
+- Encuesta con opciones de `GET /encuesta/opciones` y envío por ids; residencia = provincia **o** país. Opción nueva
+  "En el propio prestador" (CU-15).
+- Cupón: pasos "guardando" y "error" en el diálogo; `ENCUESTA_PENDIENTE` vuelve a la encuesta, `STOCK_AGOTADO` recarga
+  el catálogo. Mis cupones usa la promoción que trae cada cupón (también anulados).
+- Avisos "de ejemplo" / "código de prueba" solo con la etapa simulada. Deploy: `NEXT_PUBLIC_API_URL` fija y
+  `NEXT_PUBLIC_API_ETAPAS` desde la Variable del repo.
+- Probado en el navegador con sesión simulada (390 px): encuesta → primer cupón, segundo con un toque, Mis cupones,
+  Mi cuenta con respuestas, token vencido cierra la sesión. Build OK, catálogo en `out/index.html`.
+
+**Decisiones**
+- "Encuesta respondida" sale de `GET /turista/encuesta` (no del perfil): funciona aunque login sea real y encuesta simulada.
+- El simulador acepta el token de la API real (lee su `sub` sin verificar) para poder mezclar etapas.
+- Los datos simulados viejos (`wayki-turista-sesion`, `wayki-turista-datos-*`) quedan huérfanos: eran de prueba.
+
+**Para probar sin Google** (consola del navegador en `localhost:3015`):
+```js
+const b = (o) => btoa(JSON.stringify(o)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const exp = Math.floor(Date.now() / 1000) + 3600;
+localStorage.setItem('wayki-turista-token', JSON.stringify({ token: `${b({ alg: 'none' })}.${b({ sub: 'prueba', rol: 'turista', exp })}.x`, expira_en: new Date(exp * 1000).toISOString() }));
+localStorage.setItem('wayki-sim-prueba', JSON.stringify({ turista: { id: 1, nombre: 'Ana', nombre_completo: 'Ana Pérez', email: 'ana@gmail.com', foto_url: null }, encuesta: null, cupones: [] }));
+```
+
+**Pendientes**
+- Encender `login` cuando el servidor tenga `config.php` y los procedimientos (ver `api-doc/pedidos-backend.html`).
+- El resto de las etapas, según responda el backend.
+
+---
+
 ## 2026-11-16 (tarde) — Tabs + cuenta por única vez
 
 **Hecho**

@@ -6,13 +6,13 @@ import { usePathname } from 'next/navigation';
 import Brand from '@/components/Brand';
 import Icono from '@/components/Icono';
 import { asset } from '@/lib/asset';
-import { estadoCupon, useCuenta } from '@/lib/cuenta';
+import { useCuenta } from '@/lib/cuenta';
 import s from './Navegacion.module.css';
 
 export default function Navegacion() {
   const ruta = usePathname();
   const { sesion, cupones } = useCuenta();
-  const paraUsar = cupones.filter((c) => estadoCupon(c) === 'disponible').length;
+  const paraUsar = cupones.filter((c) => c.estado === 'disponible').length;
   // usePathname viene sin basePath; con o sin barra final según el caso, por eso startsWith sin la barra.
   const activa = (href: string) => (href === '/' ? ruta === '/' : ruta.startsWith(href)) ? 'page' : undefined;
 
@@ -40,8 +40,8 @@ export default function Navegacion() {
           </Link>
           <Link href="/cuenta/" className={s.tab} aria-current={activa('/cuenta')}>
             <span className={s.icono}>
-              {sesion?.picture
-                ? <img src={sesion.picture} alt="" width={26} height={26} referrerPolicy="no-referrer" className={s.foto} />
+              {sesion?.foto
+                ? <img src={sesion.foto} alt="" width={26} height={26} referrerPolicy="no-referrer" className={s.foto} />
                 : <Icono nombre="usuario" />}
             </span>
             Mi cuenta

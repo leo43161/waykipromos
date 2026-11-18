@@ -7,3 +7,4 @@
 .setup p { margin-top: 6px; }
 .setup code { font-size: 12px; background: var(--white); padding: 1px 5px; border-radius: 4px; }
 
+.estado { margin-top: 12px; font-size: 13px; font-weight: 700; color: var(--muted); text-align: center; }

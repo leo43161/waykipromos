@@ -8,16 +8,24 @@ import Link from 'next/link';
 import GoogleLogin from '@/components/GoogleLogin';
 import Icono from '@/components/Icono';
 import { asset } from '@/lib/asset';
-import { estadoCupon, logout, useCuenta } from '@/lib/cuenta';
+import { cerrarSesion, recargarCuenta, useCuenta } from '@/lib/cuenta';
 import s from './Cuenta.module.css';
 
 export default function Cuenta() {
-  const { listo, sesion, encuesta, cupones } = useCuenta();
+  const { listo, sesion, encuesta, cupones, error } = useCuenta();
   if (!listo) return <main id="contenido" className={s.main} />;
+
+  const aviso = error && (
+    <div className={s.bloque} role="alert">
+      <p className="form-error">{error}</p>
+      <button type="button" className="btn secondary" onClick={recargarCuenta}>Probar de nuevo</button>
+    </div>
+  );
 
   if (!sesion) {
     return (
       <main id="contenido" className={`${s.main} content-width`}>
+        {aviso}
         <div className={s.invitado}>
           <img src={asset('/wayki-promo/mascota/wayki-busto.png')} alt="" width={546} height={456} className={s.wayki} />
           <h1>Tu cuenta</h1>
@@ -35,25 +43,26 @@ export default function Cuenta() {
     );
   }
 
-  const paraUsar = cupones.filter((c) => estadoCupon(c) === 'disponible').length;
+  const paraUsar = cupones.filter((c) => c.estado === 'disponible').length;
   const usados = cupones.length - paraUsar;
   const respuestas = encuesta && [
-    ['Vivís en', encuesta.residencia],
-    ['Motivo', encuesta.motivo],
-    ['Viajás', encuesta.conQuien],
-    ['Estadía', encuesta.noches],
-    ['Te enteraste por', encuesta.medio],
-    ['Edad', encuesta.edad],
+    ['Vivís en', encuesta.provincia?.nombre ?? encuesta.pais?.nombre],
+    ['Motivo', encuesta.motivo.nombre],
+    ['Viajás', encuesta.compania.nombre],
+    ['Estadía', encuesta.duracion.nombre],
+    ['Te enteraste por', encuesta.medio.nombre],
+    ['Edad', encuesta.rango_edad.nombre],
   ];
 
   return (
     <main id="contenido" className={`${s.main} content-width`}>
+      {aviso}
       <section className={s.perfil} aria-labelledby="perfil-title">
-        {sesion.picture
-          ? <img src={sesion.picture} alt="" width={72} height={72} referrerPolicy="no-referrer" className={s.foto} />
-          : <span className={`${s.foto} ${s.inicial}`} aria-hidden="true">{sesion.givenName.charAt(0)}</span>}
+        {sesion.foto
+          ? <img src={sesion.foto} alt="" width={72} height={72} referrerPolicy="no-referrer" className={s.foto} />
+          : <span className={`${s.foto} ${s.inicial}`} aria-hidden="true">{(sesion.nombre || sesion.email).charAt(0)}</span>}
         <div>
-          <h1 id="perfil-title">{sesion.name}</h1>
+          <h1 id="perfil-title">{sesion.nombreCompleto}</h1>
           <p>{sesion.email}</p>
         </div>
       </section>
@@ -78,7 +87,7 @@ export default function Cuenta() {
       </section>
 
       <section className={s.bloque} aria-label="Sesión">
-        <button type="button" className={`btn secondary ${s.salir}`} onClick={logout}>
+        <button type="button" className={`btn secondary ${s.salir}`} onClick={cerrarSesion}>
           <Icono nombre="salir" size={20} /> Cerrar sesión
         </button>
         <p className="small-note">Si usás un celular compartido, cerrá sesión al terminar. Tus cupones quedan guardados en tu cuenta.</p>

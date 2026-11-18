@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import { asset } from '@/lib/asset';
 import Cuponera from '@/components/Cuponera';
-import { PROMOCIONES } from '@/lib/promociones';
+import { conApi } from '@/lib/api';
+import { listarPromociones } from '@/lib/promociones';
 import { SITE_DESCRIPTION, SITE_URL } from '@/lib/site';
 import s from './home.module.css';
 
@@ -28,16 +29,19 @@ const jsonLd = {
   ],
 };
 
-export default function Home() {
+// El catálogo se pide AL COMPILAR (queda en el HTML, para buscadores) y Cuponera lo refresca al abrir.
+// Si la API no responde durante el build, la página sale igual y el catálogo se carga en el navegador.
+export default async function Home() {
+  const promociones = await listarPromociones().catch(() => []);
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      <Cuponera />
+      <Cuponera inicial={promociones} />
       <footer className={`${s.footer} content-width`}>
         <img src={asset('/wayki-promo/marca/logo-tucuman-tiene-todo.png')} alt="Tucumán tiene todo" width={110} height={48} />
         <p className="small-note">
           Wayki Promo es una iniciativa del Ente Autárquico Tucumán Turismo.
-          {' '}{PROMOCIONES.length} cupones de ejemplo mientras preparamos el lanzamiento.
+          {!conApi('catalogo') && ` ${promociones.length} cupones de ejemplo mientras preparamos el lanzamiento.`}
         </p>
       </footer>
     </>
