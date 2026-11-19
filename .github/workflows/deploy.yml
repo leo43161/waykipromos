@@ -8,7 +8,6 @@ name: Deploy Wayki Promo · Turista a cPanel
 #   CPANEL_SERVER, CPANEL_USERNAME, CPANEL_PASSWORD  → los mismos del proyecto principal
 #   WAYKI_UNZIP_SECRET                               → el mismo valor que SECRETO en descomprimir.php
 # Variables del repo (pestaña Variables; no son secretas, quedan en el HTML publicado):
-#   NEXT_PUBLIC_GOOGLE_CLIENT_ID                     → ID de cliente OAuth (docs/GOOGLE_AUTH.md)
 #   NEXT_PUBLIC_WAYKI_IA_URL                         → URL del chatbot Wayki IA (opcional; vacía = "muy pronto")
 #   NEXT_PUBLIC_API_ETAPAS                           → etapas que usan la API real: login,catalogo,encuesta,cupones
 #                                                      (vacía = todo simulado en el navegador; ver lib/api.ts)
@@ -47,7 +46,8 @@ jobs:
         env:
           NEXT_PUBLIC_BASE_PATH: /waykipromo
           NEXT_PUBLIC_SITE_URL: https://tucumanturismo.gob.ar/waykipromo
-          NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
+          # Público (queda en el JS igual): va fijo para no depender de una Variable del repo.
+          NEXT_PUBLIC_GOOGLE_CLIENT_ID: 57217166408-a4fp0alheohnm5fnmn7kt0sbnsfn5b4l.apps.googleusercontent.com
           NEXT_PUBLIC_WAYKI_IA_URL: ${{ vars.NEXT_PUBLIC_WAYKI_IA_URL }}
           NEXT_PUBLIC_API_URL: https://tucumanturismo.gob.ar/waykipromo/api
           NEXT_PUBLIC_API_ETAPAS: ${{ vars.NEXT_PUBLIC_API_ETAPAS }}
