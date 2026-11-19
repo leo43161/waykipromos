@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { asset } from '@/lib/asset';
 import Cuponera from '@/components/Cuponera';
 import { conApi } from '@/lib/api';
@@ -42,6 +43,8 @@ export default async function Home() {
         <p className="small-note">
           Wayki Promo es una iniciativa del Ente Autárquico Tucumán Turismo.
           {!conApi('catalogo') && ` ${promociones.length} cupones de ejemplo mientras preparamos el lanzamiento.`}
+          <br />
+          <Link href="/terminos/">Condiciones del servicio</Link> · <Link href="/privacidad/">Política de privacidad</Link>
         </p>
       </footer>
     </>

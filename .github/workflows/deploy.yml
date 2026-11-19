@@ -49,7 +49,7 @@ jobs:
           # Público (queda en el JS igual): va fijo para no depender de una Variable del repo.
           NEXT_PUBLIC_GOOGLE_CLIENT_ID: 57217166408-a4fp0alheohnm5fnmn7kt0sbnsfn5b4l.apps.googleusercontent.com
           NEXT_PUBLIC_WAYKI_IA_URL: ${{ vars.NEXT_PUBLIC_WAYKI_IA_URL }}
-          NEXT_PUBLIC_API_URL: https://tucumanturismo.gob.ar/waykipromo/api
+          NEXT_PUBLIC_API_URL: https://tucumanturismo.gob.ar/waykipromo/api/v1
           NEXT_PUBLIC_API_ETAPAS: ${{ vars.NEXT_PUBLIC_API_ETAPAS }}
 
       # El ZIP no incluye la carpeta out/, solo su contenido.

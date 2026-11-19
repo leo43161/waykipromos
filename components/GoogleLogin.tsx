@@ -23,6 +23,7 @@
  *  abre un popup y nos devuelve un `credential` (ID token JWT) → lib/cuenta.ts → POST /auth/google.
  * ========================================================================== */
 
+import Link from 'next/link';
 import Script from 'next/script';
 import { useEffect, useRef, useState } from 'react';
 import { ingresarConGoogle, mensajeDeError, type Turista } from '@/lib/cuenta';
@@ -31,13 +32,29 @@ import s from './GoogleLogin.module.css';
 const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
 // Tipado mínimo de la librería de Google (https://developers.google.com/identity/gsi/web/reference/js-reference).
+type RespuestaGoogle = { credential: string; select_by?: string; clientId?: string };
 type GoogleId = {
-  initialize(config: { client_id: string; callback: (r: { credential: string }) => void; ux_mode?: 'popup' }): void;
+  initialize(config: { client_id: string; callback: (r: RespuestaGoogle) => void; ux_mode?: 'popup' }): void;
   renderButton(el: HTMLElement, options: Record<string, unknown>): void;
   disableAutoSelect(): void;
 };
 declare global {
   interface Window { google?: { accounts: { id: GoogleId } } }
+}
+
+// TEMPORAL (pruebas con la API, pedido del 2026-11-19): muestra en la consola lo que devuelve Google, también en
+// producción. Es el ID token de quien usa ese navegador y vence en 1 hora. Sacarlo antes de abrir la app al público.
+function mostrarRespuestaDeGoogle(r: RespuestaGoogle) {
+  let contenido: unknown = null;
+  try {
+    const b64 = r.credential.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    contenido = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(b64), (c) => c.charCodeAt(0))));
+  } catch {
+    // si no se puede decodificar, igual se ve el JWT entero
+  }
+  console.log('[Wayki] Respuesta de Google:', r);
+  console.log('[Wayki] ID token (JWT):', r.credential);
+  console.log('[Wayki] Contenido del ID token:', contenido);
 }
 
 // initialize() debe llamarse una sola vez por página; el callback apunta al componente montado.
@@ -66,7 +83,14 @@ export default function GoogleLogin({ onLogin }: { onLogin?: (s: Turista) => voi
     const google = window.google;
     if (!ready || !CLIENT_ID || !google || !buttonRef.current) return;
     if (!initialized) {
-      google.accounts.id.initialize({ client_id: CLIENT_ID, callback: (r) => onCredential(r.credential), ux_mode: 'popup' });
+      google.accounts.id.initialize({
+        client_id: CLIENT_ID,
+        callback: (r) => {
+          mostrarRespuestaDeGoogle(r);
+          onCredential(r.credential);
+        },
+        ux_mode: 'popup',
+      });
       initialized = true;
     }
     google.accounts.id.renderButton(buttonRef.current, {
@@ -102,6 +126,10 @@ export default function GoogleLogin({ onLogin }: { onLogin?: (s: Turista) => voi
         onError={() => setError('No se pudo cargar Google. Revisá tu conexión o si un bloqueador lo está impidiendo.')}
       />
       <div ref={buttonRef} className={s.button} aria-busy={!ready || entrando} />
+      <p className={s.legal}>
+        Al continuar, aceptás las <Link href="/terminos/">condiciones del servicio</Link> y
+        la <Link href="/privacidad/">política de privacidad</Link>.
+      </p>
       {entrando && <p className={s.estado} role="status">Entrando a tu cuenta…</p>}
       {error && <p className={s.error} role="alert">{error}</p>}
     </>

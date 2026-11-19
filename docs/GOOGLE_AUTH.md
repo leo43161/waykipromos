@@ -115,13 +115,33 @@ Para producción:
 2. **Base de datos:** la tabla `turistas` sirve como está; faltan dos procedimientos (`projects/api/sql/login_google.sql`).
 3. **Google Cloud:** en el cliente web agregá los orígenes de producción `https://tucumanturismo.gob.ar`
    y `https://www.tucumanturismo.gob.ar`. Van sin `/waykipromo`, porque un origen no lleva ruta. HTTPS es obligatorio
-   fuera de localhost. Después completá Branding (privacidad, términos, dominio) y en **Público** tocá **Publicar app**.
-   Con scopes básicos no hace falta verificación, salvo que subas un logo.
+   fuera de localhost. Después completá **Branding** y en **Público** tocá **Publicar app**:
+
+   | Campo de Branding | Valor |
+   |---|---|
+   | Nombre de la app | Wayki Promo |
+   | Logotipo (120 × 120, PNG) | `docs/google-logo-120.png` (avatar de Wayki del kit) |
+   | Página principal | `https://tucumanturismo.gob.ar/waykipromo/` |
+   | Política de privacidad | `https://tucumanturismo.gob.ar/waykipromo/privacidad/` |
+   | Condiciones del servicio | `https://tucumanturismo.gob.ar/waykipromo/terminos/` |
+   | Dominios autorizados | `tucumanturismo.gob.ar` |
+   | Correo de asistencia / contacto | `informes@tucumanturismo.gob.ar` (el mismo que figura en las páginas legales) |
+
+   Con scopes básicos (nombre, email, foto) no hace falta verificar la app, **salvo que subas un logo**: con logo,
+   Google pide verificar la marca (revisa que el dominio sea del Ente y que las páginas existan), y hasta que la
+   aprueba la pantalla de consentimiento no muestra el logo. Si apura publicar, se puede publicar sin logo y subirlo
+   después.
 4. **Variables:** las define el workflow `.github/workflows/deploy.yml` antes de `npm run build`, porque se
    incrustan en el HTML al compilar:
    - `NEXT_PUBLIC_BASE_PATH=/waykipromo`
    - `NEXT_PUBLIC_SITE_URL=https://tucumanturismo.gob.ar/waykipromo`
-   - `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, tomado de la *Variable* del repo con ese mismo nombre.
+   - `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, fijo en el yml (es público).
+   - `NEXT_PUBLIC_API_URL=https://tucumanturismo.gob.ar/waykipromo/api/v1`
+
+   Guía completa del deploy: `deploy/README.md` en la carpeta raíz de Wayki Promo.
+5. **Pruebas:** al ingresar, la consola del navegador muestra lo que devuelve Google (`[Wayki] ID token (JWT)` y su
+   contenido). Es **temporal** (`mostrarRespuestaDeGoogle` en `components/GoogleLogin.tsx`): sacarlo antes de abrir al
+   público.
 
    Guía completa del deploy: `deploy/README.md` en la carpeta raíz de Wayki Promo.
 
@@ -129,7 +149,7 @@ Para producción:
 
 - **One Tap** (el cartelito "Continuar como…" arriba a la derecha): `google.accounts.id.prompt()` después
   de `initialize()` en `components/GoogleLogin.tsx`.
-- **Encuesta turística**: hecha (se pide una sola vez, con el primer cupón; `components/Encuesta.tsx`). Se guarda con la etapa `encuesta` (ver `api-doc/pedidos-backend.html`).
+- **Encuesta turística**: hecha (se pide una sola vez, con el primer cupón; `components/Encuesta.tsx`). Se guarda con la etapa `encuesta` (ver `api-doc/contrato-api.html`).
 
 ## 9. Contrato para la API (backend)
 
@@ -172,7 +192,6 @@ Google **no** entrega DNI, teléfono ni procedencia. Esos datos se piden en la e
 
 ### 9.2 Flujo, endpoints y base
 
-Ya no son un borrador: el login está hecho en `projects/api` (`POST /auth/google`, `GET /turista/perfil`, con los
-procedimientos de `projects/api/sql/login_google.sql`). El contrato completo y lo que falta para encenderlo están en
-`api-doc/pedidos-backend.html` (pestaña "1 · Login"), en la carpeta raíz de Wayki Promo. Del lado de la app, el contrato
-vive en `lib/api.ts` y se enciende con la etapa `login` de `NEXT_PUBLIC_API_ETAPAS`.
+El contrato completo está en `api-doc/contrato-api.html` (carpeta raíz de Wayki Promo): la etapa `login` necesita
+`POST /auth/google` (ya existe en `projects/api`) y `GET /turista/perfil` (falta). Del lado de la app, los tipos viven
+en `lib/api.ts` y la etapa se enciende con `NEXT_PUBLIC_API_ETAPAS=login`.

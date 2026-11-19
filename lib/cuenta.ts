@@ -4,7 +4,7 @@
 // El turista nunca decide nada: el código del cupón, el stock y si ya respondió la encuesta los define el servidor.
 
 import { useEffect, useSyncExternalStore } from 'react';
-import { api, ErrorApi, type CuponApi, type EncuestaApi, type Etapa, type LoginApi, type OpcionesEncuestaApi, type RespuestasApi, type TuristaApi } from '@/lib/api';
+import { api, ErrorApi, type CuponApi, type EncuestaApi, type Etapa, type LoginApi, type OpcionesEncuestaApi, type PerfilApi, type RespuestasApi, type TuristaApi } from '@/lib/api';
 import { aPromocion, type Promocion } from '@/lib/promociones';
 
 export type Turista = { id: number; nombre: string; nombreCompleto: string; email: string; foto: string | null };
@@ -26,7 +26,8 @@ function fijar(cambio: Partial<Estado>) {
 /** Texto para mostrar de cualquier error (los de la API ya vienen escritos para el turista). */
 export const mensajeDeError = (e: unknown) => (e instanceof ErrorApi ? e.message : 'Algo falló. Probá de nuevo en un rato.');
 
-/** La sesión dejó de valer: token ausente/vencido (401), alterado (403 TOKEN_INVALIDO) o cuenta suspendida. */
+/** La sesión dejó de valer: 401 (SESION_INVALIDA, TOKEN_REQUERIDO) o cuenta suspendida. 403 TOKEN_INVALIDO es como
+ *  responde hoy la API un token vencido (el contrato pide 401): se acepta hasta que lo cambien. */
 const esSesionInvalida = (e: unknown) =>
   e instanceof ErrorApi &&
   (e.http === 401 || (e.http === 403 && e.codigo === 'TOKEN_INVALIDO') || e.codigo === 'TURISTA_SUSPENDIDO');
@@ -74,7 +75,7 @@ async function comoTurista<T>(etapa: Etapa, metodo: 'GET' | 'POST', ruta: string
 // ---------- Adaptadores (si cambia el contrato, se toca solo acá) ----------
 
 const aTurista = (t: TuristaApi): Turista => ({
-  id: t.id ?? t.turistas_id ?? 0,
+  id: t.id,
   nombre: t.nombre || t.nombre_completo?.split(' ')[0] || '',
   nombreCompleto: t.nombre_completo || [t.nombre, t.apellido].filter(Boolean).join(' ') || t.email,
   email: t.email,
@@ -106,7 +107,7 @@ async function cargarDatos() {
 }
 
 let carga: Promise<void> = Promise.resolve();
-/** Lee la sesión guardada y la valida con GET /auth/perfil. También sirve para "Probar de nuevo". */
+/** Lee la sesión guardada y la valida con GET /turista/perfil. También sirve para "Probar de nuevo". */
 export function recargarCuenta() {
   carga = cargar();
   return carga;
@@ -117,7 +118,7 @@ export const esperarCuenta = () => carga;
 async function cargar() {
   if (!leerToken()) return fijar(SIN_SESION);
   try {
-    fijar({ sesion: aTurista(await comoTurista<TuristaApi>('login', 'GET', '/auth/perfil')) });
+    fijar({ sesion: aTurista(await comoTurista<PerfilApi>('login', 'GET', '/turista/perfil')) });
     await cargarDatos();
   } catch (e) {
     // Si la sesión dejó de valer, comoTurista ya la cerró; no mostramos error, solo quedamos sin sesión.

@@ -7,4 +7,7 @@
 .setup p { margin-top: 6px; }
 .setup code { font-size: 12px; background: var(--white); padding: 1px 5px; border-radius: 4px; }
 
+.legal { margin-top: 10px; max-width: 400px; font-size: 12px; line-height: 1.5; color: var(--muted); text-align: center; }
+.legal a { color: var(--green); font-weight: 600; }
+
 .estado { margin-top: 12px; font-size: 13px; font-weight: 700; color: var(--muted); text-align: center; }

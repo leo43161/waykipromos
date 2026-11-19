@@ -4,6 +4,39 @@ Registro de sesiones de trabajo. Lo más nuevo arriba. Formato: fecha, qué se h
 
 ---
 
+## 2026-11-19 — Login con Google en producción + contrato de la API
+
+**Hecho**
+- Producción mostraba "Falta configurar el login con Google": el build de GitHub Actions no recibía el Client ID
+  (la Variable del repo no llegaba; `.env.local` nunca va a CI). El ID es público: quedó fijo en
+  `.github/workflows/deploy.yml` (commit 603ea95). Login andando en producción.
+- Contrato de la API para las 2 apps: `../../api-doc/contrato-api.html` + `openapi.yaml` (ver bitácora del admin).
+  Lo del turista: `/promociones` (+ ficha), `/encuesta/opciones`, `/turista/encuesta`, `/turista/cupones`,
+  `/turista/perfil` (nuevo, lee la base) y `DELETE /turista/cuenta` (borrar datos personales).
+
+- **App alineada con el contrato**: `lib/api.ts` (tipos copiados del contrato; arriba, qué endpoints necesita cada
+  etapa), `lib/simulador.ts` (cupón `EMITIDO`, encuesta incompleta 400, `GET /turista/perfil` con los contadores,
+  `respondida_el`, las 3 categorías reales con ids numéricos, `fecha_desde`/`dias_validos`/`horario`, token de 30 días)
+  y `lib/cuenta.ts` (valida la sesión con `/turista/perfil`). `NEXT_PUBLIC_API_URL` termina en `/v1` (yml, example y
+  `.env.local`). En producción todas las etapas siguen simuladas (`NEXT_PUBLIC_API_ETAPAS` vacía), así que nada se rompió.
+- **Para publicar el login en Google**: páginas `/privacidad/` y `/terminos/` (en el sitemap; enlazadas en el pie de
+  Inicio y debajo del botón de Google, "Al continuar, aceptás…"), contacto `informes@tucumanturismo.gob.ar`
+  (`CONTACTO_EMAIL` en `lib/site.ts`), y `docs/google-logo-120.png` (avatar de Wayki del kit). Los datos de
+  Branding quedaron en `docs/GOOGLE_AUTH.md` §8.
+- **TEMPORAL**: la consola muestra lo que devuelve Google al ingresar (respuesta, JWT y su contenido), también en
+  producción, para probar la API (`mostrarRespuestaDeGoogle` en `components/GoogleLogin.tsx`).
+
+**Decisiones**
+- Logo para Google: el avatar de Wayki (redondo, ya es el favicon). Con logo, Google pide verificar la marca.
+- Los textos legales describen lo que hace la app y la API del contrato. Los revisa el área legal del Ente.
+
+**Pendiente**
+- Sacar el `console.log` del token de Google antes de abrir al público.
+- Revisión legal de `/privacidad/` y `/terminos/`.
+- "Borrar mi cuenta" en Mi cuenta (`DELETE /turista/cuenta` ya está en el contrato; hoy se pide por mail).
+
+---
+
 ## 2026-11-18 (tarde) — App adaptada a la API oficial (login)
 
 **Hecho**

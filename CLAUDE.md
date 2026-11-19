@@ -25,6 +25,9 @@ app/
   mis-cupones/page.tsx  tab Mis cupones: <MisCupones/>                       (noindex)
   wayki/page.tsx        tab Wayki: iframe a Wayki IA o "muy pronto"          (noindex)
   cuenta/page.tsx       tab Mi cuenta: <Cuenta/> (perfil, viaje, cerrar sesión; o ingresar) (noindex)
+  privacidad/page.tsx   política de privacidad (la pide Google; Ley 25.326)        (indexable, en el sitemap)
+  terminos/page.tsx     condiciones del servicio (la pide Google)                  (indexable, en el sitemap)
+  legal.module.css      estilos de las dos páginas legales
   robots.ts, sitemap.ts generados estáticos (dynamic = force-static)
   icon.png              favicon (avatar de Wayki)
   globals.css           tokens + base (COMPARTIDO con admin/)
@@ -44,11 +47,12 @@ lib/
   simulador.ts          backend simulado en el navegador para las etapas apagadas (mismo formato y errores)
   cuenta.ts             sesión (token de la API) + encuesta + cupones + useCuenta() (estado único de la página)
   promociones.ts        catálogo: tipo Promocion + aPromocion() + listarPromociones() (sin hooks: lo usa el build)
-  site.ts               SITE_URL, nombre y descripción (usados por SEO)
+  site.ts               SITE_URL, nombre, descripción (SEO) y CONTACTO_EMAIL (páginas legales)
   asset.ts              asset(/wayki-promo/…) → antepone el basePath (COMPARTIDO)
 public/opengraph-image.jpg  imagen para compartir (declarada en layout.tsx; ver el comentario de por qué)
 public/fotos/          fotos ilustrativas del demo (no son del kit)
-docs/GOOGLE_AUTH.md     Client ID de Google (§1-8) + qué entrega Google (§9)
+docs/GOOGLE_AUTH.md     Client ID de Google (§1-8, con los datos de Branding) + qué entrega Google (§9)
+docs/google-logo-120.png  logo para la pantalla de consentimiento de Google (avatar de Wayki del kit, 120 × 120)
 .github/workflows/deploy.yml  deploy a cPanel → tucumanturismo.gob.ar/waykipromo/ (ver ../../deploy/README.md)
 ```
 
@@ -57,9 +61,10 @@ docs/GOOGLE_AUTH.md     Client ID de Google (§1-8) + qué entrega Google (§9)
 - Todo dato pasa por `api()` de `lib/api.ts`. Cada pedido pertenece a una **etapa** (`login`, `catalogo`, `encuesta`,
   `cupones`). Si la etapa está en `NEXT_PUBLIC_API_ETAPAS` (y hay `NEXT_PUBLIC_API_URL`), va a la API real; si no, la
   responde `lib/simulador.ts` **con el mismo formato y los mismos códigos de error**. Encender una etapa no toca código.
-- Los tipos `*Api` de `lib/api.ts` son el contrato que le pedimos al backend; lo que falta de cada etapa está en
-  `../../api-doc/pedidos-backend.html`. Si cambia el contrato: tipo en `api.ts`, adaptador (`aPromocion`, `aCupon`,
-  `aTurista`), el simulador y la página de pedidos, juntos.
+- Los tipos `*Api` de `lib/api.ts` copian los objetos del **contrato de la API** (`../../api-doc/contrato-api.html`,
+  fuente `api-doc/contrato/datos.mjs`); el comentario de arriba de `api.ts` dice qué endpoints necesita cada etapa.
+  `NEXT_PUBLIC_API_URL` termina en `/v1`. Si cambia el contrato: primero `datos.mjs` (y regenerar), después el tipo en
+  `api.ts`, el adaptador (`aPromocion`, `aCupon`, `aTurista`) y el simulador, juntos.
 - Las pantallas usan tipos propios (`Promocion`, `Cupon`, `Turista`), nunca los `*Api`.
 - El catálogo se pide **al compilar** (`app/page.tsx`, para SEO) y `Cuponera` lo refresca al abrir.
 - Errores: `ErrorApi` trae `http`, `codigo` y un `message` ya escrito para el turista (`mensajeDeError`).
@@ -69,8 +74,10 @@ docs/GOOGLE_AUTH.md     Client ID de Google (§1-8) + qué entrega Google (§9)
 
 - Login con **Google Identity Services** en el navegador (compatible con export estático). Sin NextAuth.
   Requiere `NEXT_PUBLIC_GOOGLE_CLIENT_ID` en `.env.local`; sin esa variable el botón muestra un aviso.
-  El `credential` va a `POST /auth/google`; la app guarda el JWT de la API y, al abrir, lo valida con `GET /auth/perfil`.
+  El `credential` va a `POST /auth/google`; la app guarda el JWT de la API y, al abrir, lo valida con `GET /turista/perfil`.
   El vencimiento sale del claim `exp` del propio token (la API no manda `expira_en` aparte).
+  TEMPORAL: `mostrarRespuestaDeGoogle` (GoogleLogin.tsx) escribe en la consola el ID token de Google, también en
+  producción, para las pruebas con la API. Sacarlo antes de abrir al público.
 - **El ingreso y la encuesta se piden una sola vez, con el primer cupón.** Después cada cupón se guarda con un toque.
   El servidor tiene la última palabra: código, stock y encuesta pendiente (`409 ENCUESTA_PENDIENTE` vuelve a la encuesta).
 - Simulado: la encuesta y los cupones quedan en `localStorage` bajo el `sub` del token (`wayki-sim-<sub>`). Para
@@ -106,4 +113,4 @@ Wayki → la cara de Wayki (`mascota/wayki-avatar-128.png`), Mi cuenta → `usua
 1. QR del código en Mis cupones (`showQR` del demo) para que el empleado lo escanee.
 2. Detalle del cupón (condiciones completas) antes de guardarlo.
 3. Mi cuenta: editar respuestas del viaje, ayuda/contacto, borrar cuenta.
-4. Encender las etapas a medida que el backend las termine (`../../api-doc/pedidos-backend.html`).
+4. Encender las etapas a medida que el backend las termine (`../../api-doc/contrato-api.html`).
