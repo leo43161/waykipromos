@@ -26,6 +26,11 @@ Registro de sesiones de trabajo. Lo más nuevo arriba. Formato: fecha, qué se h
 - **TEMPORAL**: la consola muestra lo que devuelve Google al ingresar (respuesta, JWT y su contenido), también en
   producción, para probar la API (`mostrarRespuestaDeGoogle` en `components/GoogleLogin.tsx`).
 
+- **Conexión con el panel simulado** (tarde): `lib/simulador.ts` lee los canjes de `wayki-canjes-sim` (los escribe el
+  simulador del panel; en producción comparten dominio) y marca el cupón `CANJEADO`; `lib/cuenta.ts` se recarga sola
+  si cambia esa clave en otra pestaña. Los ids de comercios y promociones del catálogo simulado tienen que coincidir
+  con `admin/lib/simulador.ts`. Probado en `admin/pruebas/simulador.mjs`.
+
 **Decisiones**
 - Logo para Google: el avatar de Wayki (redondo, ya es el favicon). Con logo, Google pide verificar la marca.
 - Los textos legales describen lo que hace la app y la API del contrato. Los revisa el área legal del Ente.

@@ -18,6 +18,7 @@ const promo = (id: number, titulo: string, descripcion_corta: string, descuento_
   comercio: { id: comercio[0], nombre: comercio[1], lugar: comercio[2] }, imagen_url: `/fotos/${imagen}.webp`,
 });
 
+// Mismos ids de comercios y promociones que admin/lib/simulador.ts (el panel canjea estos cupones): cambiar los dos.
 const PATIO: [number, string, string] = [10, 'Patio del Jardín', 'San Miguel de Tucumán'];
 const PROMOS: PromocionApi[] = [
   promo(1, 'Empanadas que cuentan historias', 'En una docena de empanadas tucumanas', '20%', GASTRO, PATIO, 'empanadas', '2027-01-31', 37, true),
@@ -110,9 +111,24 @@ function encuestaValida(e: Partial<EncuestaApi> | undefined): e is EncuestaApi {
     en(OPCIONES.motivos, e.motivo_id) && en(OPCIONES.companias, e.compania_id) && en(OPCIONES.medios, e.medio_id);
 }
 
+/** Canjes que hizo el panel simulado (admin/lib/simulador.ts). En producción las dos apps comparten dominio y por lo
+ *  tanto este almacenamiento: así un cupón guardado acá y canjeado en el panel aparece como usado. */
+export const K_CANJES = 'wayki-canjes-sim';
+function canjes(): Record<string, { canjeado_el: string } | undefined> {
+  try {
+    return JSON.parse(localStorage.getItem(K_CANJES) ?? '{}') ?? {};
+  } catch {
+    return {};
+  }
+}
+
 function aCuponApi(c: CuponGuardado): CuponApi | null {
   const p = PROMOS.find((x) => x.id === c.promocion_id);
-  return !p ? null : { codigo: c.codigo, estado: 'EMITIDO', emitido_el: c.emitido_el, vence_el: `${p.fecha_hasta}T23:59:59-03:00`, canjeado_el: null, promocion: p };
+  const canje = canjes()[c.codigo];
+  return !p ? null : {
+    codigo: c.codigo, estado: canje ? 'CANJEADO' : 'EMITIDO', emitido_el: c.emitido_el,
+    vence_el: `${p.fecha_hasta}T23:59:59-03:00`, canjeado_el: canje?.canjeado_el ?? null, promocion: p,
+  };
 }
 
 // ---------- Rutas ----------

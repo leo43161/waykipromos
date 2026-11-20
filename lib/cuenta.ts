@@ -6,6 +6,7 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { api, ErrorApi, type CuponApi, type EncuestaApi, type Etapa, type LoginApi, type OpcionesEncuestaApi, type PerfilApi, type RespuestasApi, type TuristaApi } from '@/lib/api';
 import { aPromocion, type Promocion } from '@/lib/promociones';
+import { K_CANJES } from '@/lib/simulador';
 
 export type Turista = { id: number; nombre: string; nombreCompleto: string; email: string; foto: string | null };
 export type EstadoCupon = 'disponible' | 'usado' | 'vencido' | 'anulado';
@@ -184,7 +185,8 @@ export function useCuenta() {
     if (iniciada) return;
     iniciada = true;
     recargarCuenta();
-    window.addEventListener('storage', (ev) => { if (ev.key === K_TOKEN) recargarCuenta(); }); // otra pestaña
+    // otra pestaña: ingresó o salió, o el panel simulado canjeó un cupón (mismo dominio en producción)
+    window.addEventListener('storage', (ev) => { if (ev.key === K_TOKEN || ev.key === K_CANJES) recargarCuenta(); });
   }, []);
   return e;
 }
