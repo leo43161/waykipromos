@@ -64,7 +64,7 @@ function guardarToken(token: string | null) {
 }
 
 /** Pedido como turista. Si la sesión dejó de valer, se cierra sola. */
-async function comoTurista<T>(etapa: Etapa, metodo: 'GET' | 'POST', ruta: string, cuerpo?: unknown): Promise<T> {
+async function comoTurista<T>(etapa: Etapa, metodo: 'GET' | 'POST' | 'DELETE', ruta: string, cuerpo?: unknown): Promise<T> {
   try {
     return await api<T>(etapa, metodo, ruta, { cuerpo, token: leerToken() });
   } catch (e) {
@@ -146,6 +146,13 @@ export function cerrarSesion() {
   window.google?.accounts.id.disableAutoSelect();
 }
 
+/** DELETE /turista/cuenta: borra los datos personales (Ley 25.326) y cierra la sesión. Los cupones sin usar se anulan. */
+export async function borrarCuenta() {
+  await comoTurista<{ mensaje: string }>('login', 'DELETE', '/turista/cuenta');
+  cerrarSesion();
+}
+
+/** POST /turista/encuesta: crea la encuesta o reemplaza la anterior (también desde Mi cuenta, para corregirla). */
 export async function guardarEncuesta(e: EncuestaApi) {
   fijar({ encuesta: await comoTurista<RespuestasApi>('encuesta', 'POST', '/turista/encuesta', e) });
 }

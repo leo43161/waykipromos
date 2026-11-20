@@ -4,7 +4,7 @@
 // ⚠️ No valida nada de verdad: el token de Google se decodifica sin verificar y el código se genera acá.
 // Datos de ejemplo tomados del seed de wayki-promo-demo.html; prestadores y beneficios ficticios.
 
-import type { CuponApi, EncuestaApi, LoginApi, Opcion, OpcionesEncuestaApi, Pedido, PerfilApi, PromocionApi, Respuesta, RespuestasApi, TuristaApi } from '@/lib/api';
+import type { CuponApi, EncuestaApi, LoginApi, Opcion, OpcionesEncuestaApi, Pedido, PerfilApi, PromocionApi, PromocionFichaApi, Respuesta, RespuestasApi, TuristaApi } from '@/lib/api';
 
 // Las tres categorías de la base (categorias_comercio, ids de db/propuesta_contrato_api.sql).
 const ALOJA: Opcion = { id: 1, nombre: 'Alojamiento' };
@@ -31,6 +31,28 @@ const PROMOS: PromocionApi[] = [
   promo(20, 'Llevate un pedacito de Tucumán', 'En la caja de sabores regionales', '15%', GASTRO, [16, 'Almacén Raíces', 'Tafí Viejo'], 'regionales', '2027-03-15', 44),
   promo(12, 'Sabores del corazón del valle', 'En el menú regional del mediodía', '20%', GASTRO, [17, 'Sabores de Amaicha', 'Amaicha del Valle'], 'vino', '2027-02-28', 29),
 ];
+
+// La merienda vale de lunes a viernes por la tarde (igual que en el panel simulado): sirve para ver días y horario.
+Object.assign(PROMOS.find((p) => p.id === 2)!, { dias_validos: ['LUN', 'MAR', 'MIE', 'JUE', 'VIE'], horario: { desde: '16:00', hasta: '20:00' } });
+
+// Ficha (GET /promociones/{id}): dirección y teléfono, los mismos de los comercios del panel simulado.
+const COMERCIOS: Record<number, { direccion: string; telefono: string | null }> = {
+  10: { direccion: 'Av. Aconquija 1450', telefono: '381 555-0101' }, 11: { direccion: 'Av. San Martín 320', telefono: '3867 42-1234' },
+  12: { direccion: 'Ruta 307 km 61', telefono: null }, 13: { direccion: '24 de Septiembre 500', telefono: null },
+  14: { direccion: 'Dique El Cadillal', telefono: null }, 15: { direccion: 'Av. Aconquija 2100', telefono: null },
+  16: { direccion: 'Av. Alem 850', telefono: null }, 17: { direccion: 'Ruta 307 km 118', telefono: null },
+};
+const CIRCUITOS: Record<string, Opcion> = {
+  'San Miguel de Tucumán': { id: 1, nombre: 'Ciudad' }, 'El Cadillal': { id: 1, nombre: 'Ciudad' }, 'Tafí Viejo': { id: 1, nombre: 'Ciudad' },
+  'Yerba Buena': { id: 2, nombre: 'Yungas' }, 'Tafí del Valle': { id: 3, nombre: 'Valles Calchaquíes' }, 'Amaicha del Valle': { id: 3, nombre: 'Valles Calchaquíes' },
+};
+const ficha = (p: PromocionApi): PromocionFichaApi => ({
+  ...p,
+  descripcion: p.descripcion_corta,
+  condiciones: 'No acumulable con otras promociones.',
+  comercio: { ...p.comercio, ...(COMERCIOS[p.comercio.id] ?? { direccion: '', telefono: null }), logo_url: null },
+  circuito: CIRCUITOS[p.comercio.lugar] ?? null,
+});
 
 // Mismos ids que db/propuesta_contrato_api.sql (opciones) y que la base huakipromo (provincias y países).
 const lista = (nombres: string[], desde = 1): Opcion[] => nombres.map((nombre, i) => ({ id: desde + i, nombre }));
@@ -140,6 +162,11 @@ export async function simular(metodo: string, ruta: string, { cuerpo, token }: P
 
   if (pedido === 'GET /promociones') return ok(PROMOS);
   if (pedido === 'GET /encuesta/opciones') return ok(OPCIONES);
+  const pideFicha = /^GET \/promociones\/(\d+)$/.exec(pedido);
+  if (pideFicha) {
+    const p = PROMOS.find((x) => x.id === Number(pideFicha[1]));
+    return p ? ok(ficha(p)) : error(404, 'PROMOCION_INEXISTENTE', 'Esta promoción ya no está disponible.');
+  }
 
   if (pedido === 'POST /auth/google') {
     const g = payload(String(datos?.id_token ?? ''));
@@ -180,6 +207,15 @@ export async function simular(metodo: string, ruta: string, { cuerpo, token }: P
       };
       return ok(perfil);
     }
+
+    case 'DELETE /turista/cuenta':
+      // Simulado: se borran los datos de este navegador. La API real anonimiza y conserva la estadística.
+      try {
+        localStorage.removeItem(clave(sub));
+      } catch {
+        // storage bloqueado: no había nada guardado
+      }
+      return ok({ mensaje: 'Borramos tu cuenta y tus datos personales.' });
 
     case 'GET /turista/encuesta':
       return ok(respuestas(d.encuesta));

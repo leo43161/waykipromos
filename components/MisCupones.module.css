@@ -11,6 +11,47 @@
 .codigo small { font-size: 11px; font-weight: 800; color: var(--muted); }
 .codigo strong { font-size: 30px; letter-spacing: 0.1em; color: var(--ink); }
 
+.usar { display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; margin-top: 4px; }
+.usar .codigo { margin-top: 0; }
+.verQr { min-height: 0; padding: 8px 14px; }
+
+/* ---------- QR en grande (hoja inferior en el celular, como el diálogo de Inicio) ---------- */
+.dialogo {
+  width: min(100% - 32px, 440px);
+  max-width: none;
+  max-height: min(94dvh, 820px);
+  margin: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 26px;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 30px 80px rgba(13, 50, 54, 0.35);
+  overscroll-behavior: contain;
+}
+.dialogo::backdrop { background: rgba(13, 50, 54, 0.6); backdrop-filter: blur(3px); }
+.dialogo[open] { animation: subir 0.35s cubic-bezier(0.2, 0.9, 0.3, 1) both; }
+@keyframes subir {
+  from { opacity: 0; transform: translateY(40px); }
+  to { opacity: 1; transform: none; }
+}
+@media (max-width: 600px) {
+  .dialogo { width: 100%; max-height: 96dvh; margin: auto 0 0; border-radius: 26px 26px 0 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dialogo[open] { animation: none; }
+}
+.qrCuerpo { position: relative; display: grid; gap: 8px; justify-items: center; padding: 24px 22px 28px; text-align: center; }
+.qrCuerpo h2 { padding: 0 40px; font-size: 20px; line-height: 1.25; }
+.cerrar { position: absolute; top: 14px; right: 14px; width: 44px; height: 44px; border: 0; border-radius: 50%; background: var(--white); font-size: 26px; line-height: 1; box-shadow: 0 2px 8px rgba(13, 50, 54, 0.1); }
+.qrBeneficio :global(.display) { font-size: 40px; line-height: 1; color: var(--orange-text); }
+.qr { margin-top: 6px; padding: 12px; border-radius: 18px; background: #ffffff; box-shadow: 0 0 0 2px var(--line); }
+.qr svg { display: block; width: min(240px, 68vw); height: auto; }
+.codigoGrande { display: grid; gap: 2px; justify-items: center; }
+.codigoGrande small { font-size: 11px; font-weight: 800; color: var(--muted); }
+.codigoGrande strong { font-size: 40px; letter-spacing: 0.1em; }
+.qrDatos { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; font-size: 13px; font-weight: 700; }
+
 .vacio { display: grid; gap: 12px; justify-items: center; text-align: center; }
 .vacio img { width: min(100%, 360px); border-radius: 24px; }
 .vacio p { max-width: 36ch; }

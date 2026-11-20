@@ -13,10 +13,10 @@ import Ticket from '@/components/Ticket';
 import { conApi, ErrorApi } from '@/lib/api';
 import { asset } from '@/lib/asset';
 import { esperarCuenta, leerCuenta, mensajeDeError, reclamarCupon, useCuenta, type Cupon } from '@/lib/cuenta';
-import { fechaCorta, listarPromociones, type Promocion } from '@/lib/promociones';
+import { fechaCorta, fichaPromocion, listarPromociones, type Ficha, type Promocion } from '@/lib/promociones';
 import s from './Cuponera.module.css';
 
-type Paso = 'ingresar' | 'encuesta' | 'guardando' | 'listo' | 'error';
+type Paso = 'ficha' | 'ingresar' | 'encuesta' | 'guardando' | 'listo' | 'error';
 
 /** Minúsculas y sin tildes: "tafi" encuentra "Tafí". */
 const normalizar = (t: string) => t.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase();
@@ -48,6 +48,7 @@ export default function Cuponera({ inicial }: { inicial: Promocion[] }) {
   const [promo, setPromo] = useState<Promocion | null>(null); // cupón que el turista quiere guardar
   const [cupon, setCupon] = useState<Cupon | null>(null);
   const [error, setError] = useState({ mensaje: '', reintentar: false });
+  const [ficha, setFicha] = useState<{ datos: Ficha | null; error: string }>({ datos: null, error: '' });
   const dialogo = useRef<HTMLDialogElement>(null);
 
   const destacada = promociones.find((p) => p.destacada) ?? promociones[0];
@@ -92,6 +93,18 @@ export default function Cuponera({ inicial }: { inicial: Promocion[] }) {
     avanzar(p);
   }
 
+  /** "Ver condiciones": la ficha completa (GET /promociones/{id}) antes de decidir. */
+  function verFicha(p: Promocion) {
+    setPromo(p);
+    setCupon(null);
+    setFicha({ datos: null, error: '' });
+    setPaso('ficha');
+    fichaPromocion(p.id).then(
+      (datos) => setFicha({ datos, error: '' }),
+      (e) => setFicha({ datos: null, error: mensajeDeError(e) }),
+    );
+  }
+
   const alIngresar = useCallback(() => { if (promo) avanzar(promo); }, [avanzar, promo]);
 
   const busqueda = normalizar(texto.trim());
@@ -105,7 +118,16 @@ export default function Cuponera({ inicial }: { inicial: Promocion[] }) {
   const limpiar = () => { setTexto(''); setLocalidad(''); setCategoria('todas'); };
   const tengo = (id: number) => cupones.some((c) => c.promo.id === id);
 
-  const botonCupon = (p: Promocion, variante: 'hero' | 'card') =>
+  const botonCupon = (p: Promocion, variante: 'hero' | 'card') => (
+    <div className={s.acciones}>
+      {botonPrincipal(p, variante)}
+      <button type="button" className={s.verMas} onClick={() => verFicha(p)} aria-describedby={`t-${variante}-${p.id}`}>
+        Ver condiciones
+      </button>
+    </div>
+  );
+
+  const botonPrincipal = (p: Promocion, variante: 'hero' | 'card') =>
     tengo(p.id) ? (
       <Link href="/mis-cupones/" className={`btn secondary full ${variante === 'hero' ? s.btnGrande : ''}`}>
         Ya lo tenés: ver mi código
@@ -273,6 +295,48 @@ export default function Cuponera({ inicial }: { inicial: Promocion[] }) {
         {paso && promo && (
           <div className={s.dialogoCuerpo}>
             <button type="button" className={s.cerrar} onClick={() => setPaso(null)} aria-label="Cerrar">×</button>
+
+            {paso === 'ficha' && (
+              <>
+                <p className={s.fichaBeneficio}><span className="display">{promo.beneficio}</span>{promo.beneficio.endsWith('%') && <small>de descuento</small>}</p>
+                <h2 id="dialogo-title">{promo.titulo}</h2>
+                <p className="muted">{promo.detalle}</p>
+                {ficha.error ? (
+                  <p className="form-error" role="alert">{ficha.error}</p>
+                ) : !ficha.datos ? (
+                  <p className="muted" role="status">Cargando las condiciones…</p>
+                ) : (
+                  <dl className={s.fichaDatos}>
+                    {ficha.datos.descripcion && ficha.datos.descripcion !== promo.detalle && (
+                      <div><dt>Qué incluye</dt><dd>{ficha.datos.descripcion}</dd></div>
+                    )}
+                    <div>
+                      <dt>Dónde</dt>
+                      <dd>
+                        <strong>{ficha.datos.prestador}</strong>
+                        <br />
+                        {[ficha.datos.direccion, ficha.datos.localidad].filter(Boolean).join(', ')}
+                        {ficha.datos.circuito && <span className="muted"> · {ficha.datos.circuito}</span>}
+                      </dd>
+                    </div>
+                    {ficha.datos.telefono && (
+                      <div><dt>Teléfono</dt><dd><a href={`tel:${ficha.datos.telefono.replace(/[^\d+]/g, '')}`}>{ficha.datos.telefono}</a></dd></div>
+                    )}
+                    <div><dt>Cuándo</dt><dd>{ficha.datos.cuando ?? 'Cualquier día y horario'}, hasta el {fechaCorta(ficha.datos.vence)}</dd></div>
+                    {ficha.datos.condiciones && <div><dt>Condiciones</dt><dd>{ficha.datos.condiciones}</dd></div>}
+                    <div><dt>Cupos</dt><dd>{ficha.datos.quedan > 0 ? `Quedan ${ficha.datos.quedan}` : 'Se agotaron'}</dd></div>
+                  </dl>
+                )}
+                <div className={s.listoAcciones}>
+                  {tengo(promo.id) ? (
+                    <Link href="/mis-cupones/" className="btn secondary full">Ya lo tenés: ver mi código</Link>
+                  ) : (ficha.datos?.quedan ?? promo.quedan) > 0 && (
+                    <button type="button" className="btn accent full" onClick={() => quiero(promo)}>Quiero este cupón</button>
+                  )}
+                  <button type="button" className="btn ghost full" onClick={() => setPaso(null)}>Volver a los cupones</button>
+                </div>
+              </>
+            )}
 
             {(paso === 'ingresar' || paso === 'encuesta') && (
               <>

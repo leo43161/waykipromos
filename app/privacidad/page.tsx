@@ -80,16 +80,17 @@ export default function Privacidad() {
 
         <h2>Cuánto tiempo</h2>
         <p>
-          Mientras tengas tu cuenta. Si pedís borrarla, eliminamos tus datos personales (nombre, email, foto e identificador
-          de Google) y anulamos los cupones que no usaste. Tus respuestas de la encuesta y el uso de los cupones quedan solo
-          como estadística anónima.
+          Mientras tengas tu cuenta. Podés borrarla cuando quieras desde <Link href="/cuenta/">Mi cuenta</Link>: eliminamos
+          tus datos personales (nombre, email, foto e identificador de Google) y anulamos los cupones que no usaste. Tus
+          respuestas de la encuesta y el uso de los cupones quedan solo como estadística anónima.
         </p>
 
         <h2>Tus derechos</h2>
         <p>
-          Podés pedir acceder a tus datos, corregirlos, actualizarlos o borrarlos, como establece la Ley N.º 25.326 de
-          Protección de los Datos Personales. Para hacerlo, o para cualquier consulta, escribile al Ente Autárquico
-          Tucumán Turismo a <a href={`mailto:${CONTACTO_EMAIL}`}>{CONTACTO_EMAIL}</a>.
+          Podés acceder a tus datos, corregirlos, actualizarlos o borrarlos, como establece la Ley N.º 25.326 de
+          Protección de los Datos Personales. En <Link href="/cuenta/">Mi cuenta</Link> ves tus datos y tus respuestas,
+          las corregís y borrás tu cuenta. Para cualquier otro pedido o consulta, escribile al Ente Autárquico Tucumán
+          Turismo a <a href={`mailto:${CONTACTO_EMAIL}`}>{CONTACTO_EMAIL}</a>.
         </p>
         <p className={s.ley}>
           El titular de los datos personales tiene la facultad de ejercer el derecho de acceso a los mismos en forma

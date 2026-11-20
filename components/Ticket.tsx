@@ -47,6 +47,12 @@ export default function Ticket({
             <img src={asset('/wayki-promo/iconos/calendario.svg')} alt="" width={16} height={16} />
             <span>{sello?.texto === 'Vencido' ? 'Venció' : 'Hasta'} el {fechaCorta(vence)}</span>
           </li>
+          {p.cuando && !sello && (
+            <li>
+              <img src={asset('/wayki-promo/iconos/reloj.svg')} alt="" width={16} height={16} />
+              <span>{p.cuando}</span>
+            </li>
+          )}
         </ul>
         {extra}
         {accion}

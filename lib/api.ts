@@ -5,8 +5,8 @@
 // Se activa POR ETAPAS: NEXT_PUBLIC_API_URL (termina en /v1) + NEXT_PUBLIC_API_ETAPAS (ej. "login,catalogo"). Lo que
 // no está activado lo responde lib/simulador.ts con el MISMO formato y los mismos códigos de error, así que activar
 // una etapa no cambia nada más en el front. Qué endpoints tiene que tener la API para encender cada etapa:
-//   login     POST /auth/google · GET /turista/perfil
-//   catalogo  GET /promociones
+//   login     POST /auth/google · GET /turista/perfil · DELETE /turista/cuenta
+//   catalogo  GET /promociones · GET /promociones/{id}
 //   encuesta  GET /encuesta/opciones · GET y POST /turista/encuesta          (necesita login)
 //   cupones   GET y POST /turista/cupones                                    (necesita login y catalogo)
 
@@ -31,7 +31,7 @@ export type Pedido = { cuerpo?: unknown; token?: string | null };
 export type Respuesta = { http: number; cuerpo: unknown };
 type Sobre<T> = { ok: true; data: T } | { ok: false; error: { codigo: string; mensaje: string } };
 
-export async function api<T>(etapa: Etapa, metodo: 'GET' | 'POST', ruta: string, pedido: Pedido = {}): Promise<T> {
+export async function api<T>(etapa: Etapa, metodo: 'GET' | 'POST' | 'DELETE', ruta: string, pedido: Pedido = {}): Promise<T> {
   const { http, cuerpo } = conApi(etapa) ? await pedir(metodo, ruta, pedido) : await simular(metodo, ruta, pedido);
   const r = cuerpo as Sobre<T> | null;
   if (r?.ok) return r.data;
@@ -93,6 +93,14 @@ export type PromocionApi = {
   cupos_totales: number;
   imagen_url: string | null;
   destacada: boolean;
+};
+
+/** GET /promociones/{id} → data (objeto PromocionFicha): la promoción + lo que hace falta para decidir guardarla. */
+export type PromocionFichaApi = Omit<PromocionApi, 'comercio'> & {
+  descripcion: string | null;
+  condiciones: string | null;
+  comercio: PromocionApi['comercio'] & { direccion: string; telefono: string | null; logo_url: string | null };
+  circuito: Opcion | null;
 };
 
 /** GET /encuesta/opciones → data. */

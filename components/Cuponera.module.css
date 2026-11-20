@@ -168,3 +168,18 @@
 .codigoFinal { display: grid; gap: 4px; justify-items: center; width: 100%; padding: 18px; border: 2px dashed var(--orange); border-radius: 18px; background: var(--ticket); }
 .codigoFinal strong { font-size: 52px; letter-spacing: 0.08em; }
 .codigoFinal small { font-size: 12px; font-weight: 700; color: var(--muted); }
+
+/* ---------- Botones del cupón: "Quiero este cupón" + "Ver condiciones" ---------- */
+.acciones { display: grid; gap: 2px; }
+.verMas { justify-self: center; min-height: 40px; padding: 8px 12px; border: 0; background: none; color: var(--green); font: inherit; font-size: 13px; font-weight: 800; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+
+/* ---------- Ficha de la promoción ---------- */
+.fichaBeneficio { display: flex; align-items: baseline; gap: 8px; }
+.fichaBeneficio :global(.display) { font-size: 48px; line-height: 1; color: var(--orange-text); }
+.fichaBeneficio small { font-size: 13px; font-weight: 800; color: var(--muted); }
+.fichaDatos { display: grid; margin: 0; border: 1px solid var(--line); border-radius: 16px; background: var(--white); }
+.fichaDatos div { display: grid; grid-template-columns: minmax(96px, 0.45fr) 1fr; gap: 12px; padding: 11px 14px; font-size: 14px; line-height: 1.45; }
+.fichaDatos div + div { border-top: 1px solid var(--line); }
+.fichaDatos dt { color: var(--muted); font-weight: 600; }
+.fichaDatos dd { margin: 0; overflow-wrap: anywhere; }
+.fichaDatos a { color: var(--green); font-weight: 700; }

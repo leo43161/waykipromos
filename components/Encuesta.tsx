@@ -2,20 +2,21 @@
 
 // Encuesta del Ente (CU-15), una sola vez. Las preguntas son texto de la app; las OPCIONES vienen de la API
 // (GET /encuesta/opciones, con los ids de las tablas de la base) y se manda POST /turista/encuesta con esos ids.
+// Con `inicial` arranca con las respuestas guardadas: así se corrigen desde Mi cuenta (el POST reemplaza la anterior).
 
 import { useEffect, useState, type FormEvent } from 'react';
-import { guardarEncuesta, mensajeDeError, opcionesEncuesta, type EncuestaApi, type OpcionesEncuestaApi } from '@/lib/cuenta';
+import { guardarEncuesta, mensajeDeError, opcionesEncuesta, type EncuestaApi, type OpcionesEncuestaApi, type Respuestas } from '@/lib/cuenta';
 import s from './Encuesta.module.css';
 
 const PREGUNTAS = [
-  { nombre: 'motivo_id', lista: 'motivos', pregunta: '¿Cuál es el motivo principal de tu visita?' },
-  { nombre: 'compania_id', lista: 'companias', pregunta: '¿Con quién viajás?' },
-  { nombre: 'duracion_id', lista: 'duraciones', pregunta: '¿Cuántas noches te quedás (o te vas a quedar)?' },
-  { nombre: 'medio_id', lista: 'medios', pregunta: '¿Por qué medio te enteraste del destino?' },
-  { nombre: 'rango_edad_id', lista: 'rangos_edad', pregunta: '¿En qué rango de edad estás?' },
+  { nombre: 'motivo_id', lista: 'motivos', respuesta: 'motivo', pregunta: '¿Cuál es el motivo principal de tu visita?' },
+  { nombre: 'compania_id', lista: 'companias', respuesta: 'compania', pregunta: '¿Con quién viajás?' },
+  { nombre: 'duracion_id', lista: 'duraciones', respuesta: 'duracion', pregunta: '¿Cuántas noches te quedás (o te vas a quedar)?' },
+  { nombre: 'medio_id', lista: 'medios', respuesta: 'medio', pregunta: '¿Por qué medio te enteraste del destino?' },
+  { nombre: 'rango_edad_id', lista: 'rangos_edad', respuesta: 'rango_edad', pregunta: '¿En qué rango de edad estás?' },
 ] as const;
 
-export default function Encuesta({ textoBoton, onListo }: { textoBoton: string; onListo: () => void }) {
+export default function Encuesta({ textoBoton, onListo, inicial = null }: { textoBoton: string; onListo: () => void; inicial?: Respuestas | null }) {
   const [opciones, setOpciones] = useState<OpcionesEncuestaApi | null>(null);
   const [errorCarga, setErrorCarga] = useState('');
   const [error, setError] = useState('');
@@ -69,7 +70,7 @@ export default function Encuesta({ textoBoton, onListo }: { textoBoton: string; 
     <form className={s.form} onSubmit={enviar}>
       <label className="field">
         <span className={s.pregunta}>¿De dónde nos visitás?</span>
-        <select name="residencia" required defaultValue="">
+        <select name="residencia" required defaultValue={inicial?.provincia ? `p:${inicial.provincia.id}` : inicial?.pais ? `x:${inicial.pais.id}` : ''}>
           <option value="" disabled>Elegí tu lugar de residencia</option>
           <optgroup label="Argentina">
             {opciones.provincias.map((o) => <option key={o.id} value={`p:${o.id}`}>{o.nombre}</option>)}
@@ -88,7 +89,7 @@ export default function Encuesta({ textoBoton, onListo }: { textoBoton: string; 
             {opciones[p.lista].map((o, i) => (
               <label key={o.id} className={s.pastilla}>
                 {/* un required en el grupo alcanza para que el navegador exija elegir una opción */}
-                <input type="radio" name={p.nombre} value={o.id} required={i === 0} />
+                <input type="radio" name={p.nombre} value={o.id} required={i === 0} defaultChecked={inicial?.[p.respuesta].id === o.id} />
                 <span>{o.nombre}</span>
               </label>
             ))}
@@ -97,7 +98,7 @@ export default function Encuesta({ textoBoton, onListo }: { textoBoton: string; 
       ))}
 
       <label className={s.consentimiento}>
-        <input type="checkbox" name="consentimiento" required />
+        <input type="checkbox" name="consentimiento" required defaultChecked={Boolean(inicial)} />
         <span>Acepto que el Ente Tucumán Turismo use mis respuestas con fines estadísticos, para conocer mejor a quienes nos visitan.</span>
       </label>
 

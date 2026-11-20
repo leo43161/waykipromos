@@ -4,6 +4,33 @@ Registro de sesiones de trabajo. Lo más nuevo arriba. Formato: fecha, qué se h
 
 ---
 
+## 2026-11-20 — QR, ficha, cuándo vale y Mi cuenta completa
+
+**Hecho**
+- **QR en Mis cupones**: "Mostrar QR" abre el código en grande (`components/Qr.tsx`, paquete `qrcode-generator`
+  1.4.4, MIT, sin dependencias; decidido con el usuario). SVG oscuro sobre blanco, modo alfanumérico. Si lo canjean
+  en el panel con el QR abierto, se cierra solo.
+- **Cuándo vale**: el ticket muestra días y horario (`lib/cuando.ts`, ícono `reloj` del kit), también en el QR y en la
+  ficha. La merienda (promo 2) quedó de lunes a viernes de 16 a 20 en los dos simuladores, para tener un ejemplo.
+- **Ficha antes de guardar**: "Ver condiciones" en cada cupón abre `GET /promociones/{id}` (qué incluye, dirección,
+  teléfono, cuándo, condiciones, cupos) y desde ahí se guarda. Paso `ficha` del diálogo de Inicio.
+- **Mi cuenta**: "Corregir respuestas" (la encuesta arranca con lo guardado; el POST reemplaza) y "Borrar mi cuenta"
+  (`DELETE /turista/cuenta`, confirmación dentro de la página, explica qué se borra). La política de privacidad ahora
+  dice que se hace desde Mi cuenta.
+- `lib/api.ts`: etapa `login` incluye `DELETE /turista/cuenta`; `catalogo`, `GET /promociones/{id}`.
+- `pruebas/simulador.mjs`: 18 chequeos (cuándo vale, QR, ficha, encuesta corregida, borrar cuenta). Build ok.
+  Revisado en el navegador: QR, ficha, encuesta precargada y confirmación de borrado.
+
+**Ojo**
+- `.env.local` tiene `NEXT_PUBLIC_API_ETAPAS=login`: con la app alineada al contrato, la sesión se valida con
+  `GET /turista/perfil`, que la API todavía no tiene → en local, con sesión, sale "Endpoint no encontrado". En
+  producción la etapa está apagada. Para probar en local: vaciar `NEXT_PUBLIC_API_ETAPAS` hasta que el backend lo haga.
+
+**Pendiente**
+- Sacar el `console.log` del token de Google antes de abrir al público. Revisión legal de los textos.
+
+---
+
 ## 2026-11-19 — Login con Google en producción + contrato de la API
 
 **Hecho**

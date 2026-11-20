@@ -2,30 +2,51 @@
 
 // Tab Mi cuenta. Sin sesión: explica que la cuenta se crea con el primer cupón (y deja ingresar a quien
 // ya tiene una, por ejemplo desde otro celular). Con sesión: perfil, resumen de cupones, respuestas del viaje
-// y cerrar sesión. Más opciones (editar respuestas, preferencias, ayuda) quedan para después.
+// (que se pueden corregir), cerrar sesión y borrar la cuenta (Ley 25.326, DELETE /turista/cuenta).
 
+import { useState } from 'react';
 import Link from 'next/link';
+import Encuesta from '@/components/Encuesta';
 import GoogleLogin from '@/components/GoogleLogin';
 import Icono from '@/components/Icono';
 import { asset } from '@/lib/asset';
-import { cerrarSesion, recargarCuenta, useCuenta } from '@/lib/cuenta';
+import { borrarCuenta, cerrarSesion, mensajeDeError, recargarCuenta, useCuenta } from '@/lib/cuenta';
 import s from './Cuenta.module.css';
 
 export default function Cuenta() {
   const { listo, sesion, encuesta, cupones, error } = useCuenta();
+  const [editando, setEditando] = useState(false);
+  const [aviso, setAviso] = useState(''); // "Guardamos tus respuestas" / "Borramos tu cuenta"
+  const [borrar, setBorrar] = useState<'no' | 'confirmar' | 'borrando'>('no');
+  const [errorBorrar, setErrorBorrar] = useState('');
   if (!listo) return <main id="contenido" className={s.main} />;
 
-  const aviso = error && (
+  const avisoError = error && (
     <div className={s.bloque} role="alert">
       <p className="form-error">{error}</p>
       <button type="button" className="btn secondary" onClick={recargarCuenta}>Probar de nuevo</button>
     </div>
   );
+  const avisoListo = aviso && <p className={s.aviso} role="status">{aviso}</p>;
+
+  async function confirmarBorrado() {
+    setBorrar('borrando');
+    setErrorBorrar('');
+    try {
+      await borrarCuenta(); // cierra la sesión: la página pasa a la vista sin cuenta
+      setAviso('Borramos tu cuenta y tus datos personales.');
+      setBorrar('no');
+    } catch (e) {
+      setErrorBorrar(mensajeDeError(e));
+      setBorrar('confirmar');
+    }
+  }
 
   if (!sesion) {
     return (
       <main id="contenido" className={`${s.main} content-width`}>
-        {aviso}
+        {avisoError}
+        {avisoListo}
         <div className={s.invitado}>
           <img src={asset('/wayki-promo/mascota/wayki-busto.png')} alt="" width={546} height={456} className={s.wayki} />
           <h1>Tu cuenta</h1>
@@ -56,7 +77,7 @@ export default function Cuenta() {
 
   return (
     <main id="contenido" className={`${s.main} content-width`}>
-      {aviso}
+      {avisoError}
       <section className={s.perfil} aria-labelledby="perfil-title">
         {sesion.foto
           ? <img src={sesion.foto} alt="" width={72} height={72} referrerPolicy="no-referrer" className={s.foto} />
@@ -74,8 +95,23 @@ export default function Cuenta() {
       </Link>
 
       <section className={s.bloque} aria-labelledby="viaje-title">
-        <h2 id="viaje-title">Tu viaje</h2>
-        {respuestas ? (
+        <div className={s.bloqueCab}>
+          <h2 id="viaje-title">Tu viaje</h2>
+          {respuestas && !editando && (
+            <button type="button" className={s.enlace} onClick={() => { setEditando(true); setAviso(''); }}>Corregir respuestas</button>
+          )}
+        </div>
+        {avisoListo}
+        {editando ? (
+          <>
+            <Encuesta
+              inicial={encuesta}
+              textoBoton="Guardar cambios"
+              onListo={() => { setEditando(false); setAviso('Listo: guardamos tus respuestas.'); }}
+            />
+            <button type="button" className="btn ghost" onClick={() => setEditando(false)}>Cancelar</button>
+          </>
+        ) : respuestas ? (
           <dl className={s.respuestas}>
             {respuestas.map(([k, v]) => (
               <div key={k}><dt>{k}</dt><dd>{v}</dd></div>
@@ -91,6 +127,38 @@ export default function Cuenta() {
           <Icono nombre="salir" size={20} /> Cerrar sesión
         </button>
         <p className="small-note">Si usás un celular compartido, cerrá sesión al terminar. Tus cupones quedan guardados en tu cuenta.</p>
+      </section>
+
+      <section className={`${s.bloque} ${s.borrar}`} aria-labelledby="borrar-title">
+        <h2 id="borrar-title">Borrar mi cuenta</h2>
+        {borrar === 'no' ? (
+          <>
+            <p className="muted">Borramos tus datos personales. Más información en la <Link href="/privacidad/">política de privacidad</Link>.</p>
+            <button type="button" className={`btn secondary ${s.salir}`} onClick={() => setBorrar('confirmar')}>Borrar mi cuenta</button>
+          </>
+        ) : (
+          <div className={s.confirmar} role="group" aria-label="Confirmar borrado">
+            <p><strong>¿Seguro? No se puede deshacer.</strong></p>
+            <ul>
+              <li>Borramos tu nombre, tu email, tu foto y la conexión con tu cuenta de Google.</li>
+              {paraUsar > 0 && (
+                <li>
+                  {paraUsar === 1
+                    ? 'Tu cupón sin usar se anula y vuelve a estar disponible para otros.'
+                    : `Tus ${paraUsar} cupones sin usar se anulan y vuelven a estar disponibles para otros.`}
+                </li>
+              )}
+              <li>Tus respuestas del viaje quedan solo como estadística, sin tu nombre.</li>
+            </ul>
+            {errorBorrar && <p className="form-error" role="alert">{errorBorrar}</p>}
+            <div className={s.confirmarAcciones}>
+              <button type="button" className={`btn ${s.peligro}`} onClick={confirmarBorrado} disabled={borrar === 'borrando'}>
+                {borrar === 'borrando' ? 'Borrando…' : 'Sí, borrar mi cuenta'}
+              </button>
+              <button type="button" className="btn ghost" onClick={() => { setBorrar('no'); setErrorBorrar(''); }} disabled={borrar === 'borrando'}>Cancelar</button>
+            </div>
+          </div>
+        )}
       </section>
     </main>
   );

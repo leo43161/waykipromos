@@ -14,6 +14,7 @@ npm install
 npm run dev        # http://localhost:3015  (ese origen tiene que estar autorizado en Google)
 npm run build      # export estático en out/ + chequeo de tipos
 npx serve out      # previsualizar el build estático
+node pruebas/simulador.mjs   # 18 chequeos: simulador (ficha, encuesta, cupones, borrar cuenta), "cuándo vale" y QR
 ```
 
 ## Estructura
@@ -24,7 +25,7 @@ app/
   page.tsx              tab Inicio: <Cuponera/> + footer + JSON-LD          (indexable, en el sitemap)
   mis-cupones/page.tsx  tab Mis cupones: <MisCupones/>                       (noindex)
   wayki/page.tsx        tab Wayki: iframe a Wayki IA o "muy pronto"          (noindex)
-  cuenta/page.tsx       tab Mi cuenta: <Cuenta/> (perfil, viaje, cerrar sesión; o ingresar) (noindex)
+  cuenta/page.tsx       tab Mi cuenta: <Cuenta/> (perfil, viaje que se corrige, cerrar sesión, borrar cuenta; o ingresar) (noindex)
   privacidad/page.tsx   política de privacidad (la pide Google; Ley 25.326)        (indexable, en el sitemap)
   terminos/page.tsx     condiciones del servicio (la pide Google)                  (indexable, en el sitemap)
   legal.module.css      estilos de las dos páginas legales
@@ -34,11 +35,12 @@ app/
 components/
   Navegacion.tsx        encabezado + tabs (un solo <nav>: abajo fijo en el celular, arriba en escritorio)
   Icono.tsx             íconos del kit inline con currentColor (inicio, cupon, usuario, buscar, ubicacion, salir)
-  Cuponera.tsx          Inicio: hero con el cupón destacado, buscador, filtros, "tres pasos" y el diálogo
-                        cuenta → encuesta → código (lógica en avanzar())
-  Ticket.tsx            el cupón-ticket: variantes hero / card / mio, y sello (Usado / Vencido)
-  Encuesta.tsx          preguntas del Ente (opciones cerradas)
-  MisCupones.tsx        "Para usar" (con el código grande) y "Usados y vencidos"
+  Cuponera.tsx          Inicio: hero con el cupón destacado, buscador, filtros, "tres pasos" y el diálogo:
+                        ficha ("Ver condiciones") y cuenta → encuesta → código (lógica en avanzar())
+  Ticket.tsx            el cupón-ticket: variantes hero / card / mio, sello (Usado / Vencido) y "cuándo vale"
+  Encuesta.tsx          preguntas del Ente (opciones cerradas); `inicial` para corregir desde Mi cuenta
+  MisCupones.tsx        "Para usar" (código grande + "Mostrar QR") y "Usados y vencidos"
+  Qr.tsx                QR del código (paquete qrcode-generator, SVG oscuro sobre blanco)
   Cuenta.tsx            Mi cuenta
   GoogleLogin.tsx       botón oficial de Google (GIS); prop onLogin; tutorial en el comentario de arriba
   Brand.tsx             logo Wayki | PROMO (COMPARTIDO)
@@ -46,11 +48,13 @@ lib/
   api.ts                cliente de la API + CONTRATO (tipos *Api) + etapas (NEXT_PUBLIC_API_ETAPAS)
   simulador.ts          backend simulado en el navegador para las etapas apagadas (mismo formato y errores)
   cuenta.ts             sesión (token de la API) + encuesta + cupones + useCuenta() (estado único de la página)
-  promociones.ts        catálogo: tipo Promocion + aPromocion() + listarPromociones() (sin hooks: lo usa el build)
+  promociones.ts        catálogo: Promocion + aPromocion() + listarPromociones() + fichaPromocion() (sin hooks: lo usa el build)
+  cuando.ts             cuandoVale(): días y horario en palabras ("De lunes a viernes, de 16:00 a 20:00")
   site.ts               SITE_URL, nombre, descripción (SEO) y CONTACTO_EMAIL (páginas legales)
   asset.ts              asset(/wayki-promo/…) → antepone el basePath (COMPARTIDO)
 public/opengraph-image.jpg  imagen para compartir (declarada en layout.tsx; ver el comentario de por qué)
 public/fotos/          fotos ilustrativas del demo (no son del kit)
+pruebas/simulador.mjs  prueba del simulador y de cuandoVale (node, sin dependencias de test)
 docs/GOOGLE_AUTH.md     Client ID de Google (§1-8, con los datos de Branding) + qué entrega Google (§9)
 docs/google-logo-120.png  logo para la pantalla de consentimiento de Google (avatar de Wayki del kit, 120 × 120)
 .github/workflows/deploy.yml  deploy a cPanel → tucumanturismo.gob.ar/waykipromo/ (ver ../../deploy/README.md)
@@ -110,7 +114,6 @@ Wayki → la cara de Wayki (`mascota/wayki-avatar-128.png`), Mi cuenta → `usua
 
 ## Próximos pasos sugeridos
 
-1. QR del código en Mis cupones (`showQR` del demo) para que el empleado lo escanee.
-2. Detalle del cupón (condiciones completas) antes de guardarlo.
-3. Mi cuenta: editar respuestas del viaje, ayuda/contacto, borrar cuenta.
-4. Encender las etapas a medida que el backend las termine (`../../api-doc/contrato-api.html`).
+1. Con el QR abierto, pedir que la pantalla no se apague (Wake Lock API, si el navegador la ofrece).
+2. Mi cuenta: ayuda y contacto.
+3. Encender las etapas a medida que el backend las termine (`../../api-doc/contrato-api.html`).
